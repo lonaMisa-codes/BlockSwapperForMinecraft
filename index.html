@@ -232,14 +232,15 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
             <button type="button" id="texBare" aria-pressed="false">Bare</button>
             <button type="button" id="texPack" aria-pressed="false" disabled>Your pack</button>
           </div>
-          <label class="btn" for="packFile">Load a texture pack…</label>
+          <button type="button" class="btn" id="getVanilla">Get the real Minecraft textures</button>
+          <label class="btn" for="packFile">Or load a pack or .jar…</label>
           <input class="sr" type="file" id="packFile" accept=".zip,.jar">
           <label class="check"><input type="checkbox" id="remember" checked><span>Remember it on this device</span></label>
           <div class="line">
             <button type="button" class="chip" id="packExport" disabled>Download pack.zip for GitHub</button>
             <button type="button" class="chip" id="packForget" disabled>Forget saved pack</button>
           </div>
-          <p class="note" id="texNote">Load any resource pack .zip (Bare Bones, Faithful…) or the Minecraft .jar. Then download pack.zip, a small copy of just the block textures, and put it next to this page on GitHub. The page loads it by itself every time.</p>
+          <p class="note" id="texNote">The first button downloads the game's own textures from Mojang (about 25 MB, once). They stay in your browser. You can also load any resource pack .zip or a Minecraft .jar from your device.</p>
         </div>
       </div>
 
@@ -1063,6 +1064,13 @@ async function zipRead(u8, dv, e) {
   const nl = dv.getUint16(e.off + 26, true), xl = dv.getUint16(e.off + 28, true), s = e.off + 30 + nl + xl, raw = u8.subarray(s, s + e.cs);
   return e.method === 0 ? raw : inflateRaw(raw);
 }
+async function blobToTile(blob) {
+  const bmp = await createImageBitmap(blob), c = document.createElement('canvas'); c.width = c.height = 16;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.imageSmoothingEnabled = bmp.width > 16; g.drawImage(bmp, 0, 0, bmp.width, Math.min(bmp.height, bmp.width), 0, 0, 16, 16);
+  const id = g.getImageData(0, 0, 16, 16); bmp.close();
+  return id;
+}
 async function readPack(file, progress) {
   const u8 = new Uint8Array(await file.arrayBuffer()), { dv, out } = zipIndex(u8), names = [];
   for (const k of out.keys()) { const m = k.match(/(?:^|\/)assets\/minecraft\/textures\/block\/([^\/]+)\.png$/); if (m) names.push([m[1], k]); }
@@ -1072,10 +1080,7 @@ async function readPack(file, progress) {
   for (let i = 0; i < names.length; i += 12) {
     await Promise.all(names.slice(i, i + 12).map(async ([nm, key]) => {
       try {
-        const bmp = await createImageBitmap(new Blob([await zipRead(u8, dv, out.get(key))], { type: 'image/png' }));
-        const c = document.createElement('canvas'); c.width = c.height = 16; const g = c.getContext('2d', { willReadFrequently: true });
-        g.imageSmoothingEnabled = bmp.width > 16; g.drawImage(bmp, 0, 0, bmp.width, Math.min(bmp.height, bmp.width), 0, 0, 16, 16);
-        pack.set(nm, g.getImageData(0, 0, 16, 16)); bmp.close();
+        pack.set(nm, await blobToTile(new Blob([await zipRead(u8, dv, out.get(key))], { type: 'image/png' })));
       } catch (e) { /* skip unreadable file */ }
     }));
     progress(Math.round(100 * Math.min(i + 12, names.length) / names.length));
@@ -1091,7 +1096,7 @@ async function readPack(file, progress) {
     'camBox', 'camFly', 'camOrbit', 'spdDown', 'spdUp', 'spdVal', 'joy', 'knob', 'vb', 'vUp', 'vDown',
     'tabEdit', 'tabView', 'tabSave', 'tpEdit', 'tpView', 'tpSave',
     'mSel', 'mPaint', 'multi', 'multiRow', 'modeNote', 'selBox', 'selTitle', 'selMeta', 'selSame', 'selClear', 'selPick', 'blk', 'air', 'recent', 'apply',
-    'speed', 'speedLbl', 'vTop', 'vReset', 'layer', 'layerLbl', 'layerDown', 'layerUp', 'layerAll', 'texBuiltin', 'texBare', 'texPack', 'packFile', 'texNote', 'remember', 'packExport', 'packForget', 'lbl3d',
+    'speed', 'speedLbl', 'vTop', 'vReset', 'layer', 'layerLbl', 'layerDown', 'layerUp', 'layerAll', 'texBuiltin', 'texBare', 'texPack', 'packFile', 'texNote', 'remember', 'packExport', 'packForget', 'lbl3d', 'getVanilla',
     'undo', 'redo', 'editSum', 'props', 'dropTE', 'newName', 'saveNote', 'status', 'save', 'saveTxt', 'blocks']
     .forEach(k => E[k] = $(k));
   const ID_RE = /^[a-z0-9_.-]+:[a-z0-9_./-]+$/;
@@ -1421,6 +1426,64 @@ async function readPack(file, progress) {
     if (S) { for (let i = 1; i < S.P.n; i++) if (!S.P.air[i]) S.P.tiles[i] = facesFor(S.P.names[i], S.P.props[i]); rebuildAll(); }
     req();
   }
+  async function adoptPack(pack, label) {
+    atlas.pack = pack; packName = label;
+    let msg = 'Using ' + pack.size + ' block textures from ' + label + '. Blocks it does not have use the Classic look.';
+    if (E.remember.checked) {
+      try { await idbOp('readwrite', s => s.put(packToRec(pack, label), 'pack')); savedHere = true; msg += ' Saved on this device.'; }
+      catch (e) { msg += ' Could not save it on this device.'; }
+    }
+    syncPackUI(savedHere); noteTex(msg);
+    await useTextures('pack');
+  }
+  /* The game's own textures: Mojang's launcher servers first (the whole client jar), then a public mirror of the same files. */
+  const getOk = async u => { const r = await fetch(u); if (!r.ok) throw new Error('HTTP ' + r.status); return r; };
+  async function officialPack() {
+    const man = await (await getOk('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json')).json();
+    const v = man.versions.find(x => x.id === man.latest.release), vj = await (await getOk(v.url)).json();
+    E.loadTxt.textContent = 'Downloading Minecraft ' + v.id + '… (about 25 MB)';
+    const blob = await (await getOk(vj.downloads.client.url)).blob();
+    return readPack(new File([blob], 'client.jar'), p => { E.loadTxt.textContent = 'Reading textures… ' + p + '%'; });
+  }
+  function neededTextures() {
+    const want = new Set(['grass_block_side_overlay']), names = new Set(S ? S.P.names : []);
+    for (const id of commonIds()) names.add(id);
+    for (const n of names) {
+      if (isAirName(n)) continue;
+      const sp = descFor(n.replace(/^[^:]*:/, ''));
+      for (const r of ['top', 'bottom', 'side']) for (const c of sp[r].c) want.add(c);
+    }
+    return [...want];
+  }
+  async function mirrorPack() {
+    const names = neededTextures(), pack = new Map(), base = 'https://cdn.jsdelivr.net/gh/misode/mcmeta@assets/assets/minecraft/textures/block/';
+    let fails = 0;
+    for (let i = 0; i < names.length; i += 16) {
+      await Promise.all(names.slice(i, i + 16).map(async n => {
+        try { const r = await fetch(base + n + '.png'); if (r.ok) pack.set(n, await blobToTile(await r.blob())); }
+        catch (e) { fails++; }
+      }));
+      if (!pack.size && fails >= 16) throw new Error('blocked');
+      E.loadTxt.textContent = 'Downloading textures… ' + Math.round(100 * Math.min(i + 16, names.length) / names.length) + '%';
+    }
+    return pack;
+  }
+  async function getVanilla() {
+    if (!S) return;
+    E.load.hidden = false; E.loadTxt.textContent = 'Contacting Mojang…';
+    let pack = null, via = '';
+    try { pack = await officialPack(); via = 'Mojang'; } catch (e) { /* blocked by the browser or offline */ }
+    if (!pack || !pack.size) {
+      try { E.loadTxt.textContent = 'Trying a public mirror…'; pack = await mirrorPack(); via = 'a public mirror of the game files'; } catch (e) { pack = null; }
+    }
+    if (!pack || !pack.size) {
+      if (!queue.length) E.load.hidden = true;
+      noteTex(framed ? 'Downloads are blocked inside this preview. Open your own site (GitHub Pages) or the file in a normal browser tab and try again.' : 'Could not download the textures. Check your connection, or load a pack or the Minecraft .jar from your device instead.');
+      return;
+    }
+    await adoptPack(pack, 'Minecraft (' + via + ')');
+    if (!queue.length) E.load.hidden = true;
+  }
   async function loadPack(file) {
     if (!file) return;
     if (typeof DecompressionStream === 'undefined') { noteTex('This browser cannot read zip files. Use a recent Chrome, Edge, Firefox or Safari.'); return; }
@@ -1428,14 +1491,7 @@ async function readPack(file, progress) {
     try {
       await tick();
       const pack = await readPack(file, p => { E.loadTxt.textContent = 'Reading textures… ' + p + '%'; });
-      atlas.pack = pack; packName = file.name;
-      let msg = 'Using ' + pack.size + ' block textures from ' + file.name + '. Blocks it does not have use the Classic look.';
-      if (E.remember.checked) {
-        try { await idbOp('readwrite', s => s.put(packToRec(pack, file.name), 'pack')); savedHere = true; msg += ' Saved on this device.'; }
-        catch (e) { msg += ' Could not save it on this device.'; }
-      }
-      syncPackUI(savedHere); noteTex(msg);
-      await useTextures('pack');
+      await adoptPack(pack, file.name);
     } catch (e) { noteTex('Could not use that file. ' + (e && e.message ? e.message : '')); }
     if (!queue.length) E.load.hidden = true;
   }
@@ -1694,6 +1750,7 @@ async function readPack(file, progress) {
   E.texBuiltin.addEventListener('click', () => useTextures('classic'));
   E.texBare.addEventListener('click', () => useTextures('bare'));
   E.packExport.addEventListener('click', exportPack);
+  E.getVanilla.addEventListener('click', getVanilla);
   E.packForget.addEventListener('click', forgetPack);
   E.texPack.addEventListener('click', () => { if (atlas.pack) useTextures('pack'); });
   E.packFile.addEventListener('change', () => { const f = E.packFile.files[0]; loadPack(f); E.packFile.value = ''; });

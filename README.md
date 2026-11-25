@@ -8,10 +8,8 @@ Open the GitHub Pages site for this repo (Settings → Pages → deploy from `ma
 
 ## Real Minecraft textures
 
-The page draws its own vanilla-style textures (Classic and Bare). For the real look, load a resource pack:
+The page draws its own vanilla-style textures (Classic and Bare). For the real look, open the **View** tab and press **Get the real Minecraft textures**. It downloads the game's textures once, from Mojang's servers (or a public mirror of the same files if the browser blocks that), and keeps them in your browser.
 
-1. In the app, open the **View** tab → **Load a texture pack…** and pick a resource pack `.zip` (for example Faithful or Bare Bones) or the Minecraft Java `.jar` (`.minecraft/versions/<version>/<version>.jar`).
-2. Press **Download pack.zip for GitHub**. It is a small copy with only the block textures.
-3. Put `pack.zip` in this folder, next to `index.html`, and commit it. The page loads it automatically.
+You can also load a resource pack `.zip` or the Minecraft Java `.jar` from your device. To make a pack the default for everyone who opens your site, press **Download pack.zip for GitHub**, put the file next to `index.html` and commit it. Minecraft's textures belong to Mojang, so only do that if you are comfortable publishing them.
 
 A pack saved on a device (the "Remember it on this device" option) takes priority over `pack.zip` on that device.
