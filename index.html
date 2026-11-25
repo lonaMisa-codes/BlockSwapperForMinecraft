@@ -1,0 +1,1751 @@
+<title>Litematic Block Swapper</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: a full-screen 3D view with fly controls on top of it, and a tabbed panel (right on desktop, bottom on phones). */
+:root{
+  --bg:#EEF2F0; --surface:#FFFFFF; --ink:#18201D; --muted:#58645F; --line:#D3DAD6; --soft:#E5EBE8;
+  --accent:#2B6A4D; --on-accent:#FFFFFF; --sel:#9A5B00; --sel-bg:#FFF1D9; --danger:#B3261E; --stage:#CFE0EA; --glass:rgba(255,255,255,.72);
+  --f-display:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-body:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#101514; --surface:#171E1C; --ink:#E4EAE6; --muted:#93A099; --line:#2A3430; --soft:#202A27;
+    --accent:#5FBF8F; --on-accent:#08140E; --sel:#F0B35A; --sel-bg:#2A2214; --danger:#F2938C; --stage:#16222B; --glass:rgba(23,30,28,.72);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101514; --surface:#171E1C; --ink:#E4EAE6; --muted:#93A099; --line:#2A3430; --soft:#202A27;
+  --accent:#5FBF8F; --on-accent:#08140E; --sel:#F0B35A; --sel-bg:#2A2214; --danger:#F2938C; --stage:#16222B; --glass:rgba(23,30,28,.72);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--f-body);-webkit-text-size-adjust:100%;overflow:hidden}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono)}
+.muted{color:var(--muted)}
+.sr{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
+
+#app{height:100%;display:flex;flex-direction:column}
+.top{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{min-width:0;display:flex;align-items:baseline;gap:10px}
+h1{margin:0;font:600 17px/1.2 var(--f-display);white-space:nowrap}
+#fname{font:400 12.5px var(--f-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.btn,.chip{display:inline-flex;align-items:center;justify-content:center;height:36px;padding:0 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap}
+.btn:hover,.chip:hover{background:var(--soft)}
+.chip{height:32px;padding:0 10px;font-size:13px}
+.chip:disabled,.btn:disabled{opacity:.4;cursor:not-allowed}
+
+.body{flex:1;min-height:0;display:flex;flex-direction:column}
+.stage{position:relative;flex:1;min-height:0;background:var(--stage);overflow:hidden;-webkit-user-select:none;user-select:none}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#gl:active{cursor:grabbing}
+.tip{position:absolute;left:12px;top:12px;max-width:calc(100% - 190px);padding:5px 9px;border-radius:6px;background:var(--glass);border:1px solid var(--line);font:12.5px var(--f-mono);pointer-events:none;overflow-wrap:anywhere;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.cam{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.cam .seg,.cam .pill{background:var(--glass);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.pill{display:flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:8px;padding:2px}
+.pill b{min-width:64px;text-align:center;font:600 12.5px var(--f-mono)}
+.pill button{width:32px;height:30px;border:0;border-radius:6px;background:transparent;font-size:18px;line-height:1;cursor:pointer}
+.pill button:hover{background:var(--soft)}
+.lbl3d{position:absolute;left:0;top:0;transform:translate(-50%,-100%);padding:2px 7px;border-radius:5px;background:var(--glass);border:1px solid var(--line);font:11px/1.4 var(--f-mono);white-space:nowrap;pointer-events:none;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.hint{position:absolute;left:150px;right:80px;bottom:12px;font-size:12px;color:var(--muted);pointer-events:none;text-shadow:0 0 6px var(--stage)}
+.joy{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:16px;width:124px;height:124px;border-radius:50%;background:var(--glass);border:1.5px solid var(--line);touch-action:none;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.joy::before{content:"";position:absolute;inset:34px;border-radius:50%;border:1px dashed var(--line)}
+.knob{position:absolute;left:50%;top:50%;width:52px;height:52px;border-radius:50%;background:var(--accent);opacity:.85;transform:translate(calc(-50% + var(--kx,0px)),calc(-50% + var(--ky,0px)));box-shadow:0 2px 8px rgba(0,0,0,.25);pointer-events:none}
+.vb{position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:16px;display:flex;flex-direction:column;gap:10px}
+.vb button{width:56px;height:56px;border-radius:50%;border:1.5px solid var(--line);background:var(--glass);display:flex;align-items:center;justify-content:center;touch-action:none;cursor:pointer;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.vb button:active,.vb button.on{background:var(--accent);color:var(--on-accent)}
+.vb svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{max-width:420px;width:100%;padding:22px;background:var(--surface);border:1.5px dashed var(--line);border-radius:12px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
+.card.over{border-color:var(--accent)}
+.card h2{margin:0;font:600 20px/1.25 var(--f-display)}
+.card p{margin:0;color:var(--muted)}
+.prim{height:42px;padding:0 20px;border:0;border-radius:8px;background:var(--accent);color:var(--on-accent);font-weight:600;cursor:pointer;display:inline-flex;align-items:center}
+.link{background:none;border:0;padding:0;color:var(--accent);font-weight:500;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.err{color:var(--danger);font-weight:500}
+.load{background:color-mix(in srgb,var(--stage) 80%,transparent);font-weight:500;z-index:3}
+
+.panel{flex:none;max-height:44%;overflow:auto;background:var(--surface);border-top:1px solid var(--line);display:flex;flex-direction:column}
+.tabs{position:sticky;top:0;z-index:2;display:flex;background:var(--surface);border-bottom:1px solid var(--line);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.tabs button{flex:1;height:40px;border:0;border-bottom:2px solid transparent;background:none;font-weight:600;color:var(--muted);cursor:pointer}
+.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+.tp{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.sect{padding-block:10px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.sect:last-child{border-bottom:0}
+.lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.line{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{flex:1;height:34px;padding:0 12px;border:0;background:transparent;cursor:pointer;font-weight:500;white-space:nowrap}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
+.check{display:flex;gap:8px;align-items:center;font-size:13.5px}
+.selbox{padding:8px 10px;border-radius:8px;background:var(--soft)}
+.selbox.on{background:var(--sel-bg)}
+.selbox strong{display:block;font-weight:600;overflow-wrap:anywhere}
+.selbox span{display:block;font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.selbox.on strong{color:var(--sel)}
+.field{display:flex;gap:6px}
+.field input[type=text]{flex:1;min-width:0;height:38px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);font:14px var(--f-mono)}
+.field input.bad{border-color:var(--danger)}
+.recent{display:flex;gap:6px;flex-wrap:wrap}
+.recent .chip{font-family:var(--f-mono);font-size:12px}
+.act{height:42px;border:0;border-radius:8px;background:var(--accent);color:var(--on-accent);font-weight:600;cursor:pointer}
+.act:disabled{opacity:.4;cursor:not-allowed}
+input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+.note{margin:0;font-size:12.5px;color:var(--muted)}
+.opts{display:grid;gap:10px}
+.opts label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.opts select,.opts input[type=text]{height:36px;padding:0 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.opts .check{flex-direction:row;color:var(--ink)}
+.savebar{position:sticky;bottom:0;margin-top:auto;background:var(--surface);border-top:1px solid var(--line);padding-top:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:6px}
+.savebar .line{justify-content:space-between}
+#status{font-size:12.5px;color:var(--muted);min-height:1.4em}
+#editSum{font-size:13px}
+
+@media (min-width:860px){
+  .body{flex-direction:row}
+  .panel{width:350px;max-height:none;border-top:0;border-left:1px solid var(--line)}
+  .tabs,.tp,.savebar{padding-left:16px;padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .vb{right:16px}
+}
+@media (max-width:520px){h1{font-size:15px}#fname{display:none}.hint{left:150px;right:80px;font-size:11.5px}}
+</style>
+
+<div id="app">
+  <header class="top">
+    <div class="brand"><h1>Litematic Block Swapper</h1><span id="fname" class="muted"></span></div>
+    <div><label class="btn" for="file">Open file</label><input class="sr" type="file" id="file"></div>
+  </header>
+
+  <div class="body">
+    <section class="stage" id="stage" aria-label="3D view of the schematic">
+      <canvas id="gl"></canvas>
+      <div class="tip" id="tip" hidden></div>
+      <div class="lbl3d" id="lbl3d" hidden></div>
+      <div class="cam" id="camBox" hidden>
+        <div class="seg" role="group" aria-label="Camera mode">
+          <button type="button" id="camFly" aria-pressed="true">Fly</button>
+          <button type="button" id="camOrbit" aria-pressed="false">Orbit</button>
+        </div>
+        <div class="pill" id="spdPill" title="Fly speed in blocks per second">
+          <button type="button" id="spdDown" aria-label="Slower">−</button><b id="spdVal">12 b/s</b><button type="button" id="spdUp" aria-label="Faster">+</button>
+        </div>
+      </div>
+      <div class="joy" id="joy" hidden aria-label="Move joystick"><div class="knob" id="knob"></div></div>
+      <div class="vb" id="vb" hidden>
+        <button type="button" id="vUp" aria-label="Fly up"><svg viewBox="0 0 24 24"><path d="M5 15l7-7 7 7"/></svg></button>
+        <button type="button" id="vDown" aria-label="Fly down"><svg viewBox="0 0 24 24"><path d="M5 9l7 7 7-7"/></svg></button>
+      </div>
+      <div class="hint" id="hint" hidden></div>
+      <div class="overlay" id="empty">
+        <div class="card" id="card">
+          <h2>Open a .litematic file</h2>
+          <p>Fly around it in 3D, tap any single block and replace just that one. Runs on this device, nothing is uploaded.</p>
+          <label class="prim" for="file">Choose file</label>
+          <span class="muted">or drop a file here</span>
+          <button type="button" class="link" id="sample">Try a sample house</button>
+          <p class="err" id="err" role="alert" hidden></p>
+        </div>
+      </div>
+      <div class="overlay load" id="load" hidden><span id="loadTxt">Reading file…</span></div>
+    </section>
+
+    <aside class="panel" id="panel" hidden>
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" id="tabEdit" aria-selected="true">Edit</button>
+        <button type="button" role="tab" id="tabView" aria-selected="false">View</button>
+        <button type="button" role="tab" id="tabSave" aria-selected="false">Save</button>
+      </div>
+
+      <div class="tp" id="tpEdit">
+        <div class="sect">
+          <span class="lbl">Tap a block to</span>
+          <div class="seg" role="group" aria-label="Tap action">
+            <button type="button" id="mSel" aria-pressed="true">Select it</button>
+            <button type="button" id="mPaint" aria-pressed="false">Replace it right away</button>
+          </div>
+          <label class="check" id="multiRow"><input type="checkbox" id="multi"><span>Add to selection (or hold Shift)</span></label>
+          <p class="note" id="modeNote"></p>
+        </div>
+        <div class="sect">
+          <div class="selbox" id="selBox"><strong id="selTitle">Nothing selected</strong><span id="selMeta">Tap a block in the 3D view.</span></div>
+          <div class="line">
+            <button type="button" class="chip" id="selSame" disabled>Select all of this type</button>
+            <button type="button" class="chip" id="selClear" disabled>Clear selection</button>
+            <button type="button" class="chip" id="selPick" disabled>Use as replacement</button>
+          </div>
+        </div>
+        <div class="sect">
+          <span class="lbl">Replace with</span>
+          <div class="field">
+            <input type="text" id="blk" list="blocks" placeholder="minecraft:stone" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Replacement block ID">
+            <button type="button" class="chip" id="air" title="Replace with air">Air</button>
+          </div>
+          <div class="recent" id="recent"></div>
+          <button type="button" class="act" id="apply" disabled>Replace selected</button>
+        </div>
+        <div class="sect">
+          <div class="line">
+            <button type="button" class="chip" id="undo" disabled>Undo</button>
+            <button type="button" class="chip" id="redo" disabled>Redo</button>
+            <span class="muted" id="editSum">No edits yet</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tp" id="tpView" hidden>
+        <div class="sect">
+          <span class="lbl" id="speedLbl">Fly speed</span>
+          <input type="range" id="speed" min="0" max="100" value="50" aria-labelledby="speedLbl">
+          <p class="note">Left stick moves, drag anywhere else to look. On a keyboard use W A S D, Space to rise, C to sink, and the mouse wheel for speed.</p>
+        </div>
+        <div class="sect">
+          <span class="lbl">Camera</span>
+          <div class="line">
+            <button type="button" class="chip" id="vTop">Top view</button>
+            <button type="button" class="chip" id="vReset">Reset view</button>
+          </div>
+        </div>
+        <div class="sect">
+          <span class="lbl" id="layerLbl">Layer</span>
+          <input type="range" id="layer" min="0" max="0" value="0" aria-labelledby="layerLbl">
+          <div class="line">
+            <button type="button" class="chip" id="layerDown">Down</button>
+            <button type="button" class="chip" id="layerUp">Up</button>
+            <button type="button" class="chip" id="layerAll">Show all</button>
+          </div>
+          <p class="note">Hides everything above the chosen layer, so you can reach blocks inside.</p>
+        </div>
+        <div class="sect">
+          <span class="lbl">Block textures</span>
+          <div class="seg" role="group" aria-label="Textures">
+            <button type="button" id="texBuiltin" aria-pressed="true">Classic</button>
+            <button type="button" id="texBare" aria-pressed="false">Bare</button>
+            <button type="button" id="texPack" aria-pressed="false" disabled>Your pack</button>
+          </div>
+          <label class="btn" for="packFile">Load a texture pack…</label>
+          <input class="sr" type="file" id="packFile" accept=".zip,.jar">
+          <label class="check"><input type="checkbox" id="remember" checked><span>Remember it on this device</span></label>
+          <div class="line">
+            <button type="button" class="chip" id="packExport" disabled>Download pack.zip for GitHub</button>
+            <button type="button" class="chip" id="packForget" disabled>Forget saved pack</button>
+          </div>
+          <p class="note" id="texNote">Load any resource pack .zip (Bare Bones, Faithful…) or the Minecraft .jar. Then download pack.zip, a small copy of just the block textures, and put it next to this page on GitHub. The page loads it by itself every time.</p>
+        </div>
+      </div>
+
+      <div class="tp" id="tpSave" hidden>
+        <div class="sect">
+          <div class="opts">
+            <label>Block properties on replaced blocks
+              <select id="props">
+                <option value="auto">Auto: keep when the block kind matches (stairs to stairs)</option>
+                <option value="keep">Always keep (facing, half, axis…)</option>
+                <option value="clear">Always clear</option>
+              </select>
+            </label>
+            <label class="check"><input type="checkbox" id="dropTE" checked><span>Remove chest, sign and similar data from replaced blocks</span></label>
+            <label>Schematic name <input type="text" id="newName" placeholder="Keep the current name" autocomplete="off"></label>
+            <p class="note" id="saveNote"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="savebar">
+        <div class="line">
+          <span id="status" aria-live="polite"></span>
+          <button type="button" class="chip" id="saveTxt" hidden>Save as .txt</button>
+        </div>
+        <button type="button" class="act" id="save" disabled>Save new file</button>
+      </div>
+    </aside>
+  </div>
+</div>
+<datalist id="blocks"></datalist>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ==== core: no DOM and no THREE in here ==== */
+const dec = new TextDecoder(), enc = new TextEncoder();
+
+function readNbt(u8) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  let p = 0;
+  const str = () => { const n = dv.getUint16(p); p += 2; const s = dec.decode(u8.subarray(p, p + n)); p += n; return s; };
+  const read = t => {
+    switch (t) {
+      case 1: { const v = dv.getInt8(p); p += 1; return { t, v }; }
+      case 2: { const v = dv.getInt16(p); p += 2; return { t, v }; }
+      case 3: { const v = dv.getInt32(p); p += 4; return { t, v }; }
+      case 4: { const v = dv.getBigInt64(p); p += 8; return { t, v }; }
+      case 5: { const v = dv.getFloat32(p); p += 4; return { t, v }; }
+      case 6: { const v = dv.getFloat64(p); p += 8; return { t, v }; }
+      case 7: { const n = dv.getInt32(p); p += 4; const v = u8.slice(p, p + n); p += n; return { t, v }; }
+      case 8: return { t, v: str() };
+      case 9: {
+        const et = dv.getInt8(p); p += 1; const n = dv.getInt32(p); p += 4;
+        const v = []; for (let i = 0; i < n; i++) v.push(read(et));
+        return { t, et, v };
+      }
+      case 10: {
+        const v = new Map();
+        for (;;) { const ct = dv.getInt8(p); p += 1; if (ct === 0) break; const name = str(); v.set(name, read(ct)); }
+        return { t, v };
+      }
+      case 11: { const n = dv.getInt32(p); p += 4; const v = new Int32Array(n); for (let i = 0; i < n; i++) { v[i] = dv.getInt32(p); p += 4; } return { t, v }; }
+      case 12: { const n = dv.getInt32(p); p += 4; const v = u8.slice(p, p + n * 8); p += n * 8; return { t, v }; }
+      default: throw new Error('Unknown NBT tag ' + t);
+    }
+  };
+  const rt = dv.getInt8(p); p += 1;
+  if (rt !== 10) throw new Error('This is not an NBT file.');
+  const rootName = str();
+  return { rootName, root: read(10) };
+}
+
+function writeNbt(rootName, rootNode) {
+  let b = new Uint8Array(1 << 20), dv = new DataView(b.buffer), p = 0;
+  const need = n => {
+    if (p + n > b.length) {
+      let m = b.length * 2; while (m < p + n) m *= 2;
+      const nb = new Uint8Array(m); nb.set(b.subarray(0, p)); b = nb; dv = new DataView(nb.buffer);
+    }
+  };
+  const str = s => { const e = enc.encode(s); need(2 + e.length); dv.setUint16(p, e.length); p += 2; b.set(e, p); p += e.length; };
+  const write = nd => {
+    switch (nd.t) {
+      case 1: need(1); dv.setInt8(p, nd.v); p += 1; break;
+      case 2: need(2); dv.setInt16(p, nd.v); p += 2; break;
+      case 3: need(4); dv.setInt32(p, nd.v); p += 4; break;
+      case 4: need(8); dv.setBigInt64(p, nd.v); p += 8; break;
+      case 5: need(4); dv.setFloat32(p, nd.v); p += 4; break;
+      case 6: need(8); dv.setFloat64(p, nd.v); p += 8; break;
+      case 7: need(4 + nd.v.length); dv.setInt32(p, nd.v.length); p += 4; b.set(nd.v, p); p += nd.v.length; break;
+      case 8: str(nd.v); break;
+      case 9: need(5); dv.setInt8(p, nd.et); dv.setInt32(p + 1, nd.v.length); p += 5; for (const it of nd.v) write(it); break;
+      case 10: for (const [k, c] of nd.v) { need(1); dv.setInt8(p, c.t); p += 1; str(k); write(c); } need(1); b[p++] = 0; break;
+      case 11: need(4 + nd.v.length * 4); dv.setInt32(p, nd.v.length); p += 4; for (let i = 0; i < nd.v.length; i++) { dv.setInt32(p, nd.v[i]); p += 4; } break;
+      case 12: need(4 + nd.v.length); dv.setInt32(p, nd.v.length / 8); p += 4; b.set(nd.v, p); p += nd.v.length; break;
+      default: throw new Error('Unknown NBT tag ' + nd.t);
+    }
+  };
+  need(3); b[p++] = 10; str(rootName); write(rootNode);
+  return b.subarray(0, p);
+}
+
+async function gunzip(u8) {
+  const s = new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+async function gzip(u8) {
+  const s = new Blob([u8]).stream().pipeThrough(new CompressionStream('gzip'));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+
+/* Litematica packs palette indices back to back across 64-bit longs, lowest bits first, Y then Z then X. */
+const bitsFor = n => Math.max(2, 32 - Math.clz32(Math.max(1, n - 1)));
+function bytesToWords(bytes) {
+  const n = bytes.length >> 3, dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const w = new Uint32Array(n * 2);
+  for (let i = 0; i < n; i++) { w[2 * i + 1] = dv.getUint32(8 * i); w[2 * i] = dv.getUint32(8 * i + 4); }
+  return w;
+}
+function wordsToBytes(w) {
+  const n = w.length >> 1, out = new Uint8Array(n * 8), dv = new DataView(out.buffer);
+  for (let i = 0; i < n; i++) { dv.setUint32(8 * i, w[2 * i + 1]); dv.setUint32(8 * i + 4, w[2 * i]); }
+  return out;
+}
+function packWords(len, bits, get) {
+  const w = new Uint32Array(Math.ceil(len * bits / 64) * 2);
+  let bp = 0;
+  for (let i = 0; i < len; i++) {
+    const v = get(i), wi = bp >>> 5, off = bp & 31;
+    w[wi] |= v << off;
+    if (off + bits > 32) w[wi + 1] |= v >>> (32 - off);
+    bp += bits;
+  }
+  return w;
+}
+
+/* ---- colours: no textures are loaded, so each block gets a colour from its name ---- */
+const COLOR_WORDS = { white: '#e9ecec', orange: '#f07613', magenta: '#bd44b3', light_blue: '#3aafd9', yellow: '#f8c527', lime: '#70b919', pink: '#ed8dac', gray: '#3e4447', light_gray: '#8e8e86', cyan: '#158991', purple: '#792aac', blue: '#35399d', brown: '#724728', green: '#546d1b', red: '#a12722', black: '#141519' };
+const COLOR_RE = /^(white|orange|magenta|light_blue|yellow|lime|pink|gray|light_gray|cyan|purple|blue|brown|green|red|black)_(wool|concrete|concrete_powder|terracotta|glazed_terracotta|stained_glass|stained_glass_pane|carpet|bed|banner|wall_banner|shulker_box|candle|candle_cake)/;
+const COLOR_TABLE = [
+  ['cherry_leaves', '#f0b4d0'], ['azalea_leaves', '#5f8a3a'], ['leaves', '#4a7a2a'],
+  ['dark_oak', '#4b3220'], ['pale_oak', '#e6dccb'], ['oak', '#b8945f'], ['spruce', '#7a5a34'], ['birch', '#d5c98c'], ['jungle', '#b88764'], ['acacia', '#ba6337'], ['mangrove', '#773636'], ['cherry', '#e3b5ae'], ['bamboo', '#d9c35a'], ['crimson', '#7e3a56'], ['warped', '#2b7c7a'],
+  ['coal_ore', '#4a4a4a'], ['iron_ore', '#b79a86'], ['gold_ore', '#d8c15a'], ['copper_ore', '#b07a5c'], ['diamond_ore', '#6fd6d0'], ['emerald_ore', '#3fbf6a'], ['redstone_ore', '#b03030'], ['lapis_ore', '#2f5aa8'],
+  ['coal_block', '#161616'], ['iron_block', '#d8d8d8'], ['gold_block', '#f6d03d'], ['diamond_block', '#62ece0'], ['emerald_block', '#2bc65b'], ['netherite_block', '#3f3a3e'], ['lapis_block', '#1f438d'], ['redstone_block', '#a8180c'],
+  ['oxidized', '#4fa88a'], ['weathered', '#5d9b7a'], ['exposed', '#a1795f'], ['copper', '#c26f4d'],
+  ['mossy', '#6b7a5a'], ['cobblestone', '#707070'], ['smooth_stone', '#9a9a9a'], ['stone_brick', '#7a7a7a'], ['deepslate', '#4a4a50'], ['blackstone', '#2d2a32'], ['end_stone', '#dfe0a6'],
+  ['red_sandstone', '#b5622a'], ['sandstone', '#dbcfa3'], ['red_nether', '#5c1c1c'], ['nether_brick', '#2f1618'], ['netherrack', '#6f3535'], ['quartz', '#ece6df'],
+  ['andesite', '#888888'], ['diorite', '#bdbdbd'], ['granite', '#956c5a'], ['tuff', '#6b6d63'], ['basalt', '#4a4a4f'], ['calcite', '#e0e0d8'], ['obsidian', '#14121d'],
+  ['prismarine', '#63a190'], ['purpur', '#a97ba9'], ['mud_brick', '#8a6a55'], ['mud', '#3d3a3d'], ['brick', '#96564b'], ['stone', '#7d7d7d'],
+  ['grass', '#5f9a3c'], ['podzol', '#5b4021'], ['dirt|farmland|path', '#866043'], ['red_sand', '#be6621'], ['sand', '#dccf9f'], ['gravel', '#837f7e'], ['clay', '#a0a6b3'],
+  ['snow', '#f8fefe'], ['blue_ice', '#74a8fd'], ['packed_ice', '#8da6e8'], ['ice', '#8fb9ff'], ['water', '#2f56d8'], ['lava', '#e8651a'],
+  ['glowstone', '#f1c36d'], ['sea_lantern', '#cfe3d9'], ['shroomlight', '#f08f40'], ['bookshelf', '#7a5a34'], ['hay', '#c5a21c'], ['pumpkin', '#c97616'], ['melon', '#8a9a24'], ['sponge', '#c8c24b'],
+  ['bedrock', '#3a3a3a'], ['glass', '#c8e6f0'], ['iron|chain|bars|anvil|cauldron', '#cfcfcf'], ['gold', '#f6d03d'], ['torch|lantern|campfire', '#f5c542'],
+  ['chest|barrel|crafting_table|loom', '#9a6b34'], ['furnace|smoker|dispenser|dropper|observer', '#6f6f6f'], ['fern|flower|tulip|rose|dandelion|bush|vine|moss', '#6fae45']
+].map(([re, hex]) => [new RegExp(re), hex]);
+const hex2rgb = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+function colorOf(name) {
+  const base = name.replace(/^[^:]*:/, '');
+  const cm = base.match(COLOR_RE);
+  let rgb;
+  if (cm) {
+    rgb = hex2rgb(COLOR_WORDS[cm[1]]);
+    if (cm[2] === 'terracotta' || cm[2] === 'glazed_terracotta') rgb = rgb.map((c, i) => Math.round(c * .55 + [140, 90, 67][i] * .45));
+  } else {
+    let hit = null;
+    for (const [re, hx] of COLOR_TABLE) if (re.test(base)) { hit = hx; break; }
+    if (hit) rgb = hex2rgb(hit);
+    else {
+      let h = 0; for (let i = 0; i < base.length; i++) h = (h * 31 + base.charCodeAt(i)) >>> 0;
+      const hh = (h % 360) / 60, c = .26, x = c * (1 - Math.abs(hh % 2 - 1)), m = .45;
+      const [r, g, b] = hh < 1 ? [c, x, 0] : hh < 2 ? [x, c, 0] : hh < 3 ? [0, c, x] : hh < 4 ? [0, x, c] : hh < 5 ? [x, 0, c] : [c, 0, x];
+      rgb = [(r + m) * 255, (g + m) * 255, (b + m) * 255].map(Math.round);
+    }
+    if (/_log|_wood|_stem|_hyphae/.test(base)) rgb = rgb.map(c => Math.round(c * .8));
+    else if (/stripped/.test(base)) rgb = rgb.map(c => Math.min(255, Math.round(c * 1.08)));
+  }
+  return rgb;
+}
+const isAirName = n => n === 'minecraft:air' || n === 'minecraft:cave_air' || n === 'minecraft:void_air';
+/* 0 = solid, 1 = see-through (glass, water), 2 = cut-out (plants, torches: parts of the texture are empty) */
+function classOf(name) {
+  const b = name.replace(/^[^:]*:/, '');
+  if (/(^|_)glass(_pane)?$|^water$|^ice$|slime_block|honey_block/.test(b)) return 1;
+  if (/torch|_door$|trapdoor|ladder|rail$|cobweb|^vine$|sapling|flower|tulip|dandelion|poppy|orchid|allium|azure_bluet|oxeye|cornflower|lily|(^|_)grass$|^fern$|large_fern|iron_bars|^chain$|lantern|sugar_cane|^bamboo$|kelp|seagrass|^fire$|redstone_wire|repeater|comparator|lever|_button$|_sign$|banner|^candle$|scaffolding|_roots$|_mushroom$|dead_bush|^wheat$|carrots|potatoes|beetroots|melon_stem|pumpkin_stem|sweet_berry|end_rod|pointed_dripstone|amethyst_cluster/.test(b)) return 2;
+  return 0;
+}
+
+/* ---- the global block palette shared by all regions ---- */
+const ZERO6 = [0, 0, 0, 0, 0, 0];
+let RESOLVE = null; /* set by the page: (name, props) -> six atlas tile numbers [+x,-x,+y,-y,+z,-z] */
+function makePalette() {
+  const P = { names: [], props: [], rgb: [], air: [], cls: [], tiles: [], key: new Map(), n: 0 };
+  P.get = (name, props) => {
+    const k = name + '|' + (props && props.size ? [...props].map(([a, b]) => a + '=' + b.v).sort().join(',') : '');
+    let i = P.key.get(k);
+    if (i !== undefined) return i;
+    i = P.n++;
+    P.names.push(name); P.props.push(props && props.size ? props : null);
+    const air = isAirName(name);
+    P.rgb.push(colorOf(name)); P.air.push(air); P.cls.push(classOf(name));
+    P.tiles.push(air || !RESOLVE ? ZERO6 : RESOLVE(name, props && props.size ? props : null));
+    P.key.set(k, i);
+    return i;
+  };
+  P.get('minecraft:air', null);
+  return P;
+}
+
+const MAX_VOXELS = 64e6;
+function loadWorld(rootName, root) {
+  const rs = root.v.get('Regions');
+  if (!rs || rs.t !== 10) throw new Error('No Regions tag found. Is this a .litematic file?');
+  const regions = [];
+  let mnx = 1e9, mny = 1e9, mnz = 1e9, mxx = -1e9, mxy = -1e9, mxz = -1e9;
+  for (const [name, rn] of rs.v) {
+    const m = rn.v, pal = m.get('BlockStatePalette'), bs = m.get('BlockStates'), size = m.get('Size'), pos = m.get('Position');
+    if (!pal || !bs || !size) throw new Error('Region "' + name + '" has no block data.');
+    const g = (c, k) => c ? c.v.get(k).v : 0;
+    const rx = g(size, 'x'), ry = g(size, 'y'), rz = g(size, 'z'), px = g(pos, 'x'), py = g(pos, 'y'), pz = g(pos, 'z');
+    const sx = Math.abs(rx), sy = Math.abs(ry), sz = Math.abs(rz);
+    const ox = rx >= 0 ? px : px + rx + 1, oy = ry >= 0 ? py : py + ry + 1, oz = rz >= 0 ? pz : pz + rz + 1;
+    mnx = Math.min(mnx, ox); mny = Math.min(mny, oy); mnz = Math.min(mnz, oz);
+    mxx = Math.max(mxx, ox + sx); mxy = Math.max(mxy, oy + sy); mxz = Math.max(mxz, oz + sz);
+    regions.push({ name, node: rn, sx, sy, sz, ox, oy, oz, vol: sx * sy * sz, pal, bs });
+  }
+  if (!regions.length) throw new Error('This schematic has no regions.');
+  const sx = mxx - mnx, sy = mxy - mny, sz = mxz - mnz, total = sx * sy * sz;
+  if (total > MAX_VOXELS) throw new Error('This schematic is too large to edit here (' + total.toLocaleString() + ' blocks of space).');
+  const P = makePalette(), world = new Uint16Array(total);
+  for (const r of regions) {
+    r.ox -= mnx; r.oy -= mny; r.oz -= mnz;
+    const map = r.pal.v.map(n => { const pr = n.v.get('Properties'); return P.get(n.v.get('Name').v, pr ? pr.v : null); });
+    const bits = bitsFor(map.length), words = bytesToWords(r.bs.v), mask = (1 << bits) - 1;
+    if (words.length * 32 < r.vol * bits) throw new Error('Region "' + r.name + '" has less block data than its size needs.');
+    let bp = 0;
+    for (let y = 0; y < r.sy; y++) for (let z = 0; z < r.sz; z++) {
+      let wi0 = ((y + r.oy) * sz + (z + r.oz)) * sx + r.ox;
+      for (let x = 0; x < r.sx; x++, bp += bits) {
+        const wi = bp >>> 5, off = bp & 31;
+        let v = words[wi] >>> off;
+        if (off + bits > 32) v |= words[wi + 1] << (32 - off);
+        v &= mask;
+        world[wi0 + x] = v < map.length ? map[v] : 0;
+      }
+    }
+    delete r.pal; delete r.bs;
+  }
+  const S = { rootName, root, P, world, sx, sy, sz, regions, origAt: new Map(), changed: 0, cut: sy - 1 };
+  return S;
+}
+
+function countNonAir(S) { let n = 0; const air = S.P.air, w = S.world; for (let i = 0; i < w.length; i++) if (!air[w[i]]) n++; return n; }
+
+/* ---- meshing: only visible faces, one mesh per 16x16x16 chunk ---- */
+const CS = 16, GRID = 64, UVE = .01;
+const FACES = [
+  [1, 0, 0, .8, [1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1]],
+  [-1, 0, 0, .8, [0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0]],
+  [0, 1, 0, 1, [0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0]],
+  [0, -1, 0, .5, [0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1]],
+  [0, 0, 1, .9, [0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1]],
+  [0, 0, -1, .7, [1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0]]
+];
+function meshChunk(S, cx, cy, cz) {
+  const { world, sx, sy, sz, P } = S, air = P.air, cls = P.cls, tiles = P.tiles;
+  const top = Math.min(sy, S.cut + 1);
+  const x0 = cx * CS, y0 = cy * CS, z0 = cz * CS;
+  const x1 = Math.min(x0 + CS, sx), y1 = Math.min(y0 + CS, top), z1 = Math.min(z0 + CS, sz);
+  const mk = () => ({ p: [], c: [], u: [], i: [], n: 0 }), O = mk(), T = mk(), C = mk();
+  for (let y = y0; y < y1; y++) for (let z = z0; z < z1; z++) for (let x = x0; x < x1; x++) {
+    const v = world[(y * sz + z) * sx + x];
+    if (air[v]) continue;
+    const cl = cls[v], D = cl === 0 ? O : cl === 1 ? T : C, tl = tiles[v];
+    const j = 1 + ((((x * 73856093) ^ (y * 19349663) ^ (z * 83492791)) >>> 0) % 16 - 8) * .0035;
+    for (let f = 0; f < 6; f++) {
+      const F = FACES[f], nx = x + F[0], ny = y + F[1], nz = z + F[2];
+      let nv = 0;
+      if (nx >= 0 && nx < sx && ny >= 0 && ny < top && nz >= 0 && nz < sz) { nv = world[(ny * sz + nz) * sx + nx]; if (air[nv]) nv = 0; }
+      if (nv !== 0) { const nc = cls[nv]; if (cl === 1 ? (nv === v || nc === 0) : nc === 0) continue; }
+      const sh = Math.min(255, 255 * F[3] * j) | 0, c = F[4], t = tl[f];
+      const ux = t % GRID, uy = (t / GRID) | 0, u0 = (ux + UVE) / GRID, u1 = (ux + 1 - UVE) / GRID, vb = 1 - (uy + 1 - UVE) / GRID, vt = 1 - (uy + UVE) / GRID;
+      for (let k = 0; k < 4; k++) { D.p.push(x + c[3 * k], y + c[3 * k + 1], z + c[3 * k + 2]); D.c.push(sh, sh, sh); }
+      D.u.push(u0, vb, u1, vb, u1, vt, u0, vt);
+      const o = D.n * 4; D.i.push(o, o + 1, o + 2, o, o + 2, o + 3); D.n++;
+    }
+  }
+  return { O, T, C };
+}
+
+/* ---- picking: walk a ray through the block grid; returns the world index of the first solid block, or -1 ---- */
+function pickVoxel(S, ox, oy, oz, dx, dy, dz) {
+  const { world, sx, sy, sz, P } = S, air = P.air, top = Math.min(sy, S.cut + 1);
+  const ex = [sx, top, sz], oa = [ox, oy, oz], da = [dx, dy, dz];
+  let t0 = 0, t1 = 1e9;
+  for (let a = 0; a < 3; a++) {
+    if (Math.abs(da[a]) < 1e-9) { if (oa[a] < 0 || oa[a] > ex[a]) return -1; }
+    else {
+      let ta = -oa[a] / da[a], tb = (ex[a] - oa[a]) / da[a];
+      if (ta > tb) { const q = ta; ta = tb; tb = q; }
+      if (ta > t0) t0 = ta; if (tb < t1) t1 = tb;
+      if (t0 > t1) return -1;
+    }
+  }
+  const e = t0 + 1e-5, px = ox + dx * e, py = oy + dy * e, pz = oz + dz * e;
+  let x = Math.min(sx - 1, Math.max(0, Math.floor(px))), y = Math.min(top - 1, Math.max(0, Math.floor(py))), z = Math.min(sz - 1, Math.max(0, Math.floor(pz)));
+  const stx = dx > 0 ? 1 : -1, sty = dy > 0 ? 1 : -1, stz = dz > 0 ? 1 : -1;
+  const tdx = dx === 0 ? Infinity : Math.abs(1 / dx), tdy = dy === 0 ? Infinity : Math.abs(1 / dy), tdz = dz === 0 ? Infinity : Math.abs(1 / dz);
+  let tmx = dx === 0 ? Infinity : (dx > 0 ? x + 1 - px : px - x) * tdx;
+  let tmy = dy === 0 ? Infinity : (dy > 0 ? y + 1 - py : py - y) * tdy;
+  let tmz = dz === 0 ? Infinity : (dz > 0 ? z + 1 - pz : pz - z) * tdz;
+  for (let n = sx + sy + sz + 3; n > 0; n--) {
+    const idx = (y * sz + z) * sx + x;
+    if (!air[world[idx]]) return idx;
+    if (tmx < tmy && tmx < tmz) { x += stx; if (x < 0 || x >= sx) return -1; tmx += tdx; }
+    else if (tmy < tmz) { y += sty; if (y < 0 || y >= top) return -1; tmy += tdy; }
+    else { z += stz; if (z < 0 || z >= sz) return -1; tmz += tdz; }
+  }
+  return -1;
+}
+
+/* ---- editing ---- */
+const suffixOf = n => n.split(':')[1].split('_').pop();
+function resolveBlock(S, oldIdx, target, mode) {
+  const P = S.P, oldName = P.names[oldIdx], oldProps = P.props[oldIdx];
+  const keep = mode === 'keep' ? true : mode === 'clear' ? false : suffixOf(oldName) === suffixOf(target);
+  return P.get(target, keep ? oldProps : null);
+}
+/* Writes block values and remembers what each changed cell was originally. Returns the chunks to rebuild. */
+function setCells(S, cells, vals) {
+  const dirty = new Set(), { world, sx, sy, sz, origAt } = S;
+  const ncx = Math.ceil(sx / CS), ncy = Math.ceil(sy / CS), ncz = Math.ceil(sz / CS);
+  const add = (a, b, c) => { if (a >= 0 && a < ncx && b >= 0 && b < ncy && c >= 0 && c < ncz) dirty.add((c * ncy + b) * ncx + a); };
+  for (let i = 0; i < cells.length; i++) {
+    const idx = cells[i], cur = world[idx], nv = vals[i];
+    if (cur === nv) continue;
+    let o = origAt.get(idx);
+    if (o === undefined) { o = cur; origAt.set(idx, o); }
+    S.changed += (nv !== o ? 1 : 0) - (cur !== o ? 1 : 0);
+    world[idx] = nv;
+    const x = idx % sx, t = (idx / sx) | 0, z = t % sz, y = (t / sz) | 0;
+    const a = x >> 4, b = y >> 4, c = z >> 4;
+    add(a, b, c);
+    if ((x & 15) === 0) add(a - 1, b, c); else if ((x & 15) === 15) add(a + 1, b, c);
+    if ((y & 15) === 0) add(a, b - 1, c); else if ((y & 15) === 15) add(a, b + 1, c);
+    if ((z & 15) === 0) add(a, b, c - 1); else if ((z & 15) === 15) add(a, b, c + 1);
+  }
+  return dirty;
+}
+
+/* ---- saving: rebuilds each region's palette and block data from the edited grid ---- */
+function saveWorld(S, opt) {
+  const { P, world, sx, sz } = S, regionsOut = new Map();
+  let total = 0;
+  for (const r of S.regions) {
+    const tmp = new Uint16Array(r.vol), used = new Uint8Array(P.n);
+    let i = 0;
+    for (let y = 0; y < r.sy; y++) for (let z = 0; z < r.sz; z++) {
+      const wi0 = ((y + r.oy) * sz + (z + r.oz)) * sx + r.ox;
+      for (let x = 0; x < r.sx; x++, i++) { const v = world[wi0 + x]; tmp[i] = v; used[v] = 1; }
+    }
+    const map = new Int32Array(P.n).fill(-1), list = [0]; map[0] = 0;
+    for (let id = 1; id < P.n; id++) if (used[id]) { map[id] = list.length; list.push(id); }
+    const bits = bitsFor(list.length), words = packWords(r.vol, bits, k => map[tmp[k]]);
+    for (let k = 0; k < r.vol; k++) if (!P.air[tmp[k]]) total++;
+    const palNodes = list.map(id => {
+      const mp = new Map([['Name', { t: 8, v: P.names[id] }]]);
+      if (P.props[id]) mp.set('Properties', { t: 10, v: P.props[id] });
+      return { t: 10, v: mp };
+    });
+    const m = new Map(r.node.v);
+    m.set('BlockStatePalette', { t: 9, et: 10, v: palNodes });
+    m.set('BlockStates', { t: 12, v: wordsToBytes(words) });
+    const te = m.get('TileEntities');
+    if (opt.dropTE && te && S.changed) {
+      const kept = te.v.filter(n => {
+        const a = n.v.get('x'), b = n.v.get('y'), c = n.v.get('z');
+        if (!a || !b || !c) return true;
+        const wi = ((b.v + r.oy) * sz + (c.v + r.oz)) * sx + a.v + r.ox, o = S.origAt.get(wi);
+        return o === undefined || P.names[o] === P.names[world[wi]];
+      });
+      m.set('TileEntities', { t: 9, et: te.et, v: kept });
+    }
+    regionsOut.set(r.name, { t: 10, v: m });
+  }
+  const root = new Map(S.root.v);
+  root.set('Regions', { t: 10, v: regionsOut });
+  const metaNode = S.root.v.get('Metadata');
+  if (metaNode) {
+    const meta = new Map(metaNode.v);
+    meta.set('TotalBlocks', { t: 3, v: total });
+    meta.set('TimeModified', { t: 4, v: BigInt(Date.now()) });
+    if (opt.name) meta.set('Name', { t: 8, v: opt.name });
+    root.set('Metadata', { t: 10, v: meta });
+  }
+  return { t: 10, v: root };
+}
+
+/* A zip holding one stored file. The viewer only saves common file types, so the schematic travels inside it. */
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function makeZip(name, data) {
+  const nb = enc.encode(name), crc = crc32(data), size = data.length, d = new Date();
+  const dosT = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+  const dosD = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  const out = new Uint8Array(30 + nb.length + size + 46 + nb.length + 22), dv = new DataView(out.buffer);
+  let p = 0;
+  dv.setUint32(p, 0x04034b50, true); dv.setUint16(p + 4, 20, true); dv.setUint16(p + 6, 0x0800, true);
+  dv.setUint16(p + 10, dosT, true); dv.setUint16(p + 12, dosD, true); dv.setUint32(p + 14, crc, true);
+  dv.setUint32(p + 18, size, true); dv.setUint32(p + 22, size, true); dv.setUint16(p + 26, nb.length, true);
+  p += 30; out.set(nb, p); p += nb.length; out.set(data, p); p += size;
+  const cd = p;
+  dv.setUint32(p, 0x02014b50, true); dv.setUint16(p + 4, 20, true); dv.setUint16(p + 6, 20, true); dv.setUint16(p + 8, 0x0800, true);
+  dv.setUint16(p + 12, dosT, true); dv.setUint16(p + 14, dosD, true); dv.setUint32(p + 16, crc, true);
+  dv.setUint32(p + 20, size, true); dv.setUint32(p + 24, size, true); dv.setUint16(p + 28, nb.length, true);
+  p += 46; out.set(nb, p); p += nb.length;
+  dv.setUint32(p, 0x06054b50, true); dv.setUint16(p + 8, 1, true); dv.setUint16(p + 10, 1, true);
+  dv.setUint32(p + 12, p - cd, true); dv.setUint32(p + 16, cd, true);
+  return out;
+}
+
+/* A small house with a garden pond, so there is something to edit before you have a file of your own. */
+function makeSample() {
+  const sx = 19, sy = 12, sz = 15, vol = sx * sy * sz, names = ['minecraft:air'], props = [null], at = new Map([['minecraft:air|', 0]]);
+  const B = (name, pr) => {
+    const k = name + '|' + (pr ? Object.entries(pr).join() : '');
+    if (!at.has(k)) { at.set(k, names.length); names.push(name); props.push(pr || null); }
+    return at.get(k);
+  };
+  const idx = new Uint8Array(vol), set = (x, y, z, v) => { idx[(y * sz + z) * sx + x] = v; };
+  const grass = B('minecraft:grass_block'), cobble = B('minecraft:cobblestone'), plank = B('minecraft:oak_planks'),
+    log = B('minecraft:spruce_log', { axis: 'y' }), glass = B('minecraft:glass'), roof = B('minecraft:spruce_planks'),
+    ceil = B('minecraft:oak_slab', { type: 'bottom', waterlogged: 'false' }), rug = B('minecraft:red_wool'),
+    shelf = B('minecraft:bookshelf'), table = B('minecraft:crafting_table'), water = B('minecraft:water'),
+    chest = B('minecraft:chest', { facing: 'north', type: 'single', waterlogged: 'false' }), lamp = B('minecraft:lantern');
+  for (let x = 0; x < sx; x++) for (let z = 0; z < sz; z++) set(x, 0, z, grass);
+  for (let x = 14; x <= 16; x++) for (let z = 9; z <= 11; z++) set(x, 0, z, water);
+  const hx = 2, hz = 2, W = 15, D = 11;
+  for (let x = 0; x < W; x++) for (let z = 0; z < D; z++) {
+    set(hx + x, 0, hz + z, cobble);
+    const edge = x === 0 || x === W - 1 || z === 0 || z === D - 1;
+    if (!edge) { set(hx + x, 5, hz + z, ceil); continue; }
+    const corner = (x === 0 || x === W - 1) && (z === 0 || z === D - 1);
+    for (let y = 1; y <= 4; y++) {
+      const win = (y === 2 || y === 3) && (((z === 0 || z === D - 1) && x % 4 === 2) || ((x === 0 || x === W - 1) && z % 4 === 2));
+      const door = x === 7 && z === 0 && y <= 2;
+      set(hx + x, y, hz + z, door ? 0 : corner ? log : win ? glass : plank);
+    }
+  }
+  for (let k = 0; k <= 5; k++) for (let x = k; x < W - k; x++) for (let z = k; z < D - k; z++) {
+    if (x === k || x === W - 1 - k || z === k || z === D - 1 - k || k === 5) set(hx + x, 5 + k, hz + z, roof);
+  }
+  for (let x = 6; x <= 8; x++) for (let z = 3; z <= 7; z++) set(hx + x, 0, hz + z, rug);
+  for (let x = 2; x <= 12; x++) for (let y = 1; y <= 2; y++) set(hx + x, y, hz + D - 2, shelf);
+  set(hx + 3, 1, hz + 3, chest); set(hx + 5, 1, hz + 3, table); set(hx + 7, 4, hz + 5, lamp);
+  const pal = names.map((n, i) => {
+    const mp = new Map([['Name', { t: 8, v: n }]]);
+    if (props[i]) mp.set('Properties', { t: 10, v: new Map(Object.entries(props[i]).map(([k, v]) => [k, { t: 8, v }])) });
+    return { t: 10, v: mp };
+  });
+  const words = packWords(vol, bitsFor(pal.length), i => idx[i]);
+  const xyz = (x, y, z) => ({ t: 10, v: new Map([['x', { t: 3, v: x }], ['y', { t: 3, v: y }], ['z', { t: 3, v: z }]]) });
+  const empty = { t: 9, et: 10, v: [] };
+  const te = { t: 10, v: new Map([['x', { t: 3, v: hx + 3 }], ['y', { t: 3, v: 1 }], ['z', { t: 3, v: hz + 3 }], ['id', { t: 8, v: 'minecraft:chest' }], ['Items', { t: 9, et: 10, v: [] }]]) };
+  const region = new Map([
+    ['Position', xyz(0, 0, 0)], ['Size', xyz(sx, sy, sz)], ['PendingBlockTicks', empty], ['Entities', empty],
+    ['TileEntities', { t: 9, et: 10, v: [te] }], ['PendingFluidTicks', empty],
+    ['BlockStatePalette', { t: 9, et: 10, v: pal }], ['BlockStates', { t: 12, v: wordsToBytes(words) }]
+  ]);
+  const now = BigInt(Date.now());
+  const meta = new Map([
+    ['EnclosingSize', xyz(sx, sy, sz)], ['Author', { t: 8, v: 'Sample' }], ['Description', { t: 8, v: '' }],
+    ['Name', { t: 8, v: 'Sample house' }], ['RegionCount', { t: 3, v: 1 }], ['TimeCreated', { t: 4, v: now }], ['TimeModified', { t: 4, v: now }],
+    ['TotalBlocks', { t: 3, v: 0 }], ['TotalVolume', { t: 3, v: vol }]
+  ]);
+  return { rootName: '', root: { t: 10, v: new Map([['MinecraftDataVersion', { t: 3, v: 3955 }], ['Version', { t: 3, v: 6 }], ['Metadata', { t: 10, v: meta }], ['Regions', { t: 10, v: new Map([['House', { t: 10, v: region }]]) }]]) } };
+}
+
+function commonIds() {
+  const out = [], add = (...a) => out.push(...a.map(x => 'minecraft:' + x));
+  const woods = ['oak', 'spruce', 'birch', 'jungle', 'acacia', 'dark_oak', 'mangrove', 'cherry', 'pale_oak', 'bamboo', 'crimson', 'warped'];
+  for (const w of woods) add(w + '_planks', w + '_stairs', w + '_slab', w + '_fence', w + '_door', w + '_trapdoor');
+  for (const w of woods.slice(0, 9)) add(w + '_log', 'stripped_' + w + '_log', w + '_wood', w + '_leaves');
+  const colors = ['white', 'orange', 'magenta', 'light_blue', 'yellow', 'lime', 'pink', 'gray', 'light_gray', 'cyan', 'purple', 'blue', 'brown', 'green', 'red', 'black'];
+  for (const c of colors) add(c + '_wool', c + '_concrete', c + '_terracotta', c + '_stained_glass');
+  add('stone', 'cobblestone', 'mossy_cobblestone', 'stone_bricks', 'mossy_stone_bricks', 'cracked_stone_bricks', 'smooth_stone', 'andesite', 'diorite', 'granite',
+    'polished_andesite', 'polished_diorite', 'polished_granite', 'deepslate', 'cobbled_deepslate', 'deepslate_bricks', 'bricks', 'sandstone', 'cut_sandstone', 'smooth_sandstone',
+    'quartz_block', 'smooth_quartz', 'quartz_bricks', 'nether_bricks', 'blackstone', 'polished_blackstone', 'prismarine', 'end_stone_bricks', 'purpur_block', 'tuff', 'mud_bricks',
+    'copper_block', 'cut_copper', 'iron_block', 'gold_block', 'diamond_block', 'emerald_block', 'dirt', 'coarse_dirt', 'grass_block', 'podzol', 'sand', 'gravel', 'clay',
+    'glass', 'glass_pane', 'tinted_glass', 'obsidian', 'glowstone', 'sea_lantern', 'shroomlight', 'bookshelf', 'hay_block', 'ice', 'packed_ice', 'snow_block', 'netherrack',
+    'end_stone', 'water', 'lava', 'air', 'lantern', 'torch', 'chain', 'iron_bars', 'chest', 'crafting_table', 'furnace');
+  for (const s of ['stone', 'cobblestone', 'mossy_cobblestone', 'stone_brick', 'smooth_stone', 'andesite', 'diorite', 'granite', 'cobbled_deepslate', 'deepslate_brick', 'brick', 'sandstone', 'quartz', 'nether_brick', 'blackstone'])
+    add(s + '_stairs', s + '_slab', s + '_wall');
+  return out;
+}
+/* ==== /core ==== */
+
+/* ==== textures: generated pixel art, or tiles read from a pack the user loads ==== */
+const TILE = 16;
+const hashStr = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+const rng = seed => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+const WOODS = 'oak|spruce|birch|jungle|acacia|dark_oak|mangrove|cherry|pale_oak|bamboo|crimson|warped';
+const COLORS16 = 'white|orange|magenta|light_blue|yellow|lime|pink|gray|light_gray|cyan|purple|blue|brown|green|red|black';
+
+function genTile(style, rgb, seed, opt) {
+  const img = new ImageData(16, 16), d = img.data, r = rng(seed);
+  const cl = v => v < 0 ? 0 : v > 255 ? 255 : v | 0;
+  const set = (x, y, c, a) => { if (x < 0 || y < 0 || x > 15 || y > 15) return; const i = (y * 16 + x) * 4; d[i] = cl(c[0]); d[i + 1] = cl(c[1]); d[i + 2] = cl(c[2]); d[i + 3] = a === undefined ? 255 : a; };
+  const sc = (c, f) => [c[0] * f, c[1] * f, c[2] * f];
+  const fill = fn => { for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) fn(x, y); };
+  const nz = (c, a) => sc(c, 1 + (r() - .5) * a);
+  const pick = a => a[Math.min(a.length - 1, (r() * a.length) | 0)];
+  /* blotchy value noise: cs = blob size in pixels, jit = how much per-pixel noise is mixed in, tones = brightness steps */
+  const blot = (cs, jit, tones) => {
+    const w = Math.ceil(16 / cs) + 1, g = []; for (let i = 0; i < w * w; i++) g.push(r());
+    return (x, y) => { const v = g[((y / cs) | 0) * w + ((x / cs) | 0)] * (1 - jit) + r() * jit; return tones[Math.min(tones.length - 1, (v * tones.length) | 0)]; };
+  };
+  const paintBlot = (c, cs, jit, tones) => { const f = blot(cs, jit, tones); fill((x, y) => set(x, y, sc(c, f(x, y)))); };
+  const speck = (n, c) => { for (let k = 0; k < n; k++) set(r() * 16 | 0, r() * 16 | 0, c); };
+  switch (style) {
+    case 'bare': fill((x, y) => { const m = Math.min(x, y) === 0 ? 1.1 : Math.max(x, y) === 15 ? .88 : 1; set(x, y, sc(rgb, m)); }); break;
+    case 'stone': paintBlot(rgb, 2, .4, [.84, .92, 1, 1.08]); speck(5, sc(rgb, .7)); break;
+    case 'dirt': paintBlot(rgb, 2, .5, [.68, .82, 1, 1.12]); speck(10, sc(rgb, .6)); speck(4, sc(rgb, 1.25)); break;
+    case 'sand': paintBlot(rgb, 2, .6, [.94, .98, 1, 1.03]); speck(6, sc(rgb, .9)); break;
+    case 'gravel': paintBlot(rgb, 3, .35, [.6, .8, 1, 1.2]); speck(8, sc(rgb, .55)); break;
+    case 'planks': {
+      const rowTone = [1, .94, 1.05, .98];
+      for (let b = 0; b < 4; b++) {
+        const base = rowTone[(b + (r() * 4 | 0)) % 4], seam = 3 + (r() * 10 | 0);
+        for (let x = 0; x < 16; x++) for (let y = b * 4; y < b * 4 + 4; y++) {
+          let f = base * (1 + (r() - .5) * .05);
+          if (y === b * 4 + 3) f *= .74;
+          else if (x === seam) f *= .8;
+          set(x, y, sc(rgb, f));
+        }
+        for (let k = 0; k < 2; k++) { const gx = r() * 12 | 0, gy = b * 4 + (r() * 3 | 0), len = 2 + (r() * 4 | 0); for (let i = 0; i < len; i++) set(gx + i, gy, sc(rgb, .86)); }
+      }
+      break;
+    }
+    case 'bark': {
+      const tones = [.62, .78, .92, 1.05];
+      for (let x = 0; x < 16; x++) { let y = 0; while (y < 16) { const len = 2 + (r() * 6 | 0), t = pick(tones); for (let i = 0; i < len && y + i < 16; i++) set(x, y + i, sc(rgb, t * (1 + (r() - .5) * .06))); y += len; } }
+      break;
+    }
+    case 'rings': {
+      const inner = sc(rgb, 1.3);
+      fill((x, y) => {
+        const dd = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5));
+        let c = dd > 6 ? sc(rgb, pick([.7, .8, .9])) : (Math.floor(dd) % 3 === 0 ? sc(inner, .84) : inner);
+        set(x, y, nz(c, .07));
+      });
+      break;
+    }
+    case 'leaves': { const f = blot(2, .65, [.4, .62, .88, 1.1, 1.3]); fill((x, y) => set(x, y, sc(rgb, f(x, y)))); break; }
+    case 'cobble': {
+      const n = 11, sx = [], sy = [], tn = [];
+      for (let i = 0; i < n; i++) { sx.push(r() * 16); sy.push(r() * 16); tn.push(pick([.78, .9, 1, 1.1])); }
+      const id = (x, y) => { let best = 0, bd = 1e9; for (let i = 0; i < n; i++) for (const ox of [-16, 0, 16]) for (const oy of [-16, 0, 16]) { const dx = x - sx[i] - ox, dy = y - sy[i] - oy, dd = dx * dx + dy * dy; if (dd < bd) { bd = dd; best = i; } } return best; };
+      const ids = []; for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) ids.push(id(x, y));
+      fill((x, y) => { const c = ids[y * 16 + x], edge = (x < 15 && ids[y * 16 + x + 1] !== c) || (y < 15 && ids[(y + 1) * 16 + x] !== c); set(x, y, sc(rgb, tn[c] * (edge ? .6 : 1) * (1 + (r() - .5) * .08))); });
+      break;
+    }
+    case 'brick': {
+      const mort = [188, 180, 165], tone = {};
+      fill((x, y) => {
+        const row = y >> 2, off = row & 1 ? 8 : 0, col = ((x + off) >> 4 === 0 ? (x + off) % 16 : (x + off) % 16) >> 3, k = row * 2 + col;
+        if (tone[k] === undefined) tone[k] = pick([.88, .96, 1.02, 1.1]);
+        const m = y % 4 === 3 || (x + off) % 8 === 7;
+        set(x, y, m ? nz(mort, .1) : sc(rgb, tone[k] * (1 + (r() - .5) * .1)));
+      });
+      break;
+    }
+    case 'sbrick': {
+      const tone = {};
+      fill((x, y) => {
+        const row = y >> 3, off = row ? 8 : 0, k = row * 2 + (((x + off) % 16) >> 3);
+        if (tone[k] === undefined) tone[k] = pick([.94, 1, 1.06]);
+        const m = y % 8 === 7 || (x + off) % 8 === 7, hi = !m && (y % 8 === 0 || (x + off) % 8 === 0);
+        set(x, y, m ? sc(rgb, .6) : sc(rgb, tone[k] * (hi ? 1.1 : 1) * (1 + (r() - .5) * .08)));
+      });
+      break;
+    }
+    case 'ore': {
+      const deep = opt && opt.deep, bs = deep ? [74, 74, 80] : [125, 125, 125], sp = opt && opt.spot || [200, 160, 120];
+      paintBlot(bs, 2, .4, [.84, .92, 1, 1.08]);
+      for (let k = 0; k < 5; k++) {
+        let x = 2 + (r() * 11 | 0), y = 2 + (r() * 11 | 0);
+        for (let i = 0; i < 4; i++) { set(x, y, sc(sp, pick([.85, 1, 1.2]))); set(x + 1, y, sc(sp, pick([.8, .95, 1.15]))); x += (r() * 3 | 0) - 1; y += (r() * 3 | 0) - 1; }
+      }
+      break;
+    }
+    case 'wool': fill((x, y) => set(x, y, sc(rgb, ((x + y) & 1 ? .96 : 1.03) * (1 + (r() - .5) * .08)))); break;
+    case 'flat': fill((x, y) => set(x, y, nz(rgb, .035))); break;
+    case 'glass': {
+      const st = opt && opt.stained, fr = st ? rgb : [215, 238, 245];
+      fill((x, y) => { const e = x === 0 || y === 0 || x === 15 || y === 15; set(x, y, e ? fr : st ? rgb : [255, 255, 255], e ? 235 : st ? 120 : 0); });
+      for (let k = 2; k < 6; k++) set(k, k + 1, [255, 255, 255], 200);
+      break;
+    }
+    case 'water': fill((x, y) => set(x, y, nz(rgb, .12), 175)); break;
+    case 'ice': fill((x, y) => set(x, y, nz(rgb, .08), 205)); break;
+    case 'lava': paintBlot([232, 101, 26], 2, .5, [.7, .9, 1.1, 1.35]); break;
+    case 'metal': fill((x, y) => { const e = Math.min(x, y), f = Math.max(x, y); let m = 1 + (r() - .5) * .05; if (e === 0) m = 1.18; else if (f === 15) m = .8; set(x, y, sc(rgb, m)); }); break;
+    case 'quartz': fill((x, y) => set(x, y, sc(rgb, (y % 5 === 4 ? .94 : 1) * (1 + (r() - .5) * .03)))); break;
+    case 'shelf': {
+      const pl = [184, 148, 95];
+      fill((x, y) => { if (y < 2 || y > 13 || y === 7 || y === 8) set(x, y, nz(pl, .1)); });
+      for (let row = 0; row < 2; row++) { const y0 = row ? 9 : 2; for (let x = 0; x < 16; x += 2) { const c = pick([[170, 60, 50], [60, 90, 150], [70, 130, 70], [200, 170, 70], [120, 70, 140]]); for (let yy = 0; yy < 5; yy++) for (let xx = 0; xx < 2; xx++) set(x + xx, y0 + yy, sc(c, xx ? .85 : 1.05)); } }
+      break;
+    }
+    case 'gtop': paintBlot(rgb, 2, .6, [.78, .9, 1, 1.12]); speck(8, sc(rgb, .7)); break;
+    case 'gside': {
+      const dirt = [134, 96, 67];
+      paintBlot(dirt, 2, .5, [.68, .82, 1, 1.12]); speck(8, sc(dirt, .6));
+      const gf = blot(2, .5, [.8, .92, 1, 1.1]);
+      for (let x = 0; x < 16; x++) { const h = 2 + (r() * 3 | 0); for (let y = 0; y < h; y++) set(x, y, sc(rgb, gf(x, y))); if (r() < .5) set(x, h, sc(rgb, .75)); }
+      break;
+    }
+    case 'plant': {
+      for (let x = 1; x < 15; x += 1 + (r() * 2 | 0)) { const h = 5 + (r() * 9 | 0); for (let y = 15; y > 15 - h; y--) set(x, y, nz(rgb, .3)); }
+      if (opt && opt.flower) for (const [a, b] of [[7, 5], [8, 5], [7, 6], [8, 6]]) set(a, b, opt.flower);
+      break;
+    }
+    case 'torch': {
+      for (let y = 6; y < 16; y++) for (let x = 7; x < 9; x++) set(x, y, nz([139, 107, 58], .2));
+      for (let y = 3; y < 6; y++) for (let x = 7; x < 9; x++) set(x, y, y === 3 ? [255, 235, 120] : [255, 190, 60]);
+      break;
+    }
+    case 'ladder': {
+      for (let y = 0; y < 16; y++) for (const x of [2, 3, 12, 13]) set(x, y, nz([140, 105, 60], .2));
+      for (let y = 2; y < 16; y += 4) for (let x = 4; x < 12; x++) set(x, y, nz([150, 115, 65], .2));
+      break;
+    }
+    case 'bars': { for (let i = 0; i < 16; i++) { set(7, i, nz([170, 170, 175], .15)); set(8, i, nz([150, 150, 155], .15)); set(i, 7, nz([170, 170, 175], .15)); set(i, 8, nz([150, 150, 155], .15)); } break; }
+    default: paintBlot(rgb, 2, .5, [.84, .92, 1, 1.08]); speck(6, sc(rgb, .8));
+  }
+  return img;
+}
+
+function styleOf(n) {
+  if (/_ore$/.test(n)) return 'ore';
+  if (/leaves/.test(n)) return 'leaves';
+  if (/glass/.test(n)) return 'glass';
+  if (/^water/.test(n)) return 'water';
+  if (/^lava/.test(n)) return 'lava';
+  if (/(^|_)ice$/.test(n)) return 'ice';
+  if (/planks|bamboo_mosaic/.test(n)) return 'planks';
+  if (/cobble/.test(n)) return 'cobble';
+  if (/^(bricks|nether_bricks|red_nether_bricks|mud_bricks)$/.test(n)) return 'brick';
+  if (/brick|tile/.test(n)) return 'sbrick';
+  if (/wool|carpet|_bed$|banner/.test(n)) return 'wool';
+  if (/concrete|terracotta|snow|^clay/.test(n)) return 'flat';
+  if (/(iron|gold|diamond|emerald|netherite|lapis|redstone|coal|copper)_block|cut_copper|^(exposed|weathered|oxidized)|raw_/.test(n)) return 'metal';
+  if (/quartz|calcite|smooth_stone/.test(n)) return 'quartz';
+  if (/sand/.test(n)) return 'sand';
+  if (/gravel/.test(n)) return 'gravel';
+  if (/dirt|podzol|mud$|farmland|path|mycelium|rooted/.test(n)) return 'dirt';
+  if (/stone|andesite|diorite|granite|tuff|deepslate|blackstone|basalt|netherrack|obsidian|bedrock|prismarine/.test(n)) return 'stone';
+  if (/torch/.test(n)) return 'torch';
+  if (/ladder/.test(n)) return 'ladder';
+  if (/bars|chain/.test(n)) return 'bars';
+  if (/grass|fern|flower|tulip|dandelion|poppy|vine|sapling|bush|mushroom|kelp|seagrass|sugar_cane|^bamboo$/.test(n)) return 'plant';
+  return 'noise';
+}
+
+const SHAPE_RE = /_(stairs|slab|fence_gate|fence|wall|button|pressure_plate|wall_sign|hanging_sign|wall_hanging_sign|sign)$/;
+const MAT_MAP = { stone_brick: 'stone_bricks', mossy_stone_brick: 'mossy_stone_bricks', brick: 'bricks', nether_brick: 'nether_bricks', red_nether_brick: 'red_nether_bricks', deepslate_brick: 'deepslate_bricks', deepslate_tile: 'deepslate_tiles', polished_blackstone_brick: 'polished_blackstone_bricks', end_stone_brick: 'end_stone_bricks', mud_brick: 'mud_bricks', tuff_brick: 'tuff_bricks', prismarine_brick: 'prismarine_bricks', purpur: 'purpur_block', quartz: 'quartz_block', smooth_quartz: 'quartz_block_bottom', smooth_sandstone: 'sandstone_top', smooth_red_sandstone: 'red_sandstone_top', cut_sandstone: 'cut_sandstone', smooth_stone: 'smooth_stone', bamboo: 'bamboo_planks', cut_red_sandstone: 'cut_red_sandstone' };
+function materialOf(base) {
+  const b0 = base.replace(/^waxed_/, ''), m = b0.replace(SHAPE_RE, '');
+  if (m === b0) return b0;
+  if (MAT_MAP[m]) return MAT_MAP[m];
+  if (new RegExp('^(' + WOODS + ')$').test(m)) return m + '_planks';
+  return m;
+}
+const SPECIAL = {
+  grass_block: ['grass_block_top', 'dirt', 'grass_block_side'], podzol: ['podzol_top', 'dirt', 'podzol_side'], mycelium: ['mycelium_top', 'dirt', 'mycelium_side'],
+  sandstone: ['sandstone_top', 'sandstone_bottom', 'sandstone'], red_sandstone: ['red_sandstone_top', 'red_sandstone_bottom', 'red_sandstone'],
+  cut_sandstone: ['sandstone_top', 'sandstone_top', 'cut_sandstone'], cut_red_sandstone: ['red_sandstone_top', 'red_sandstone_top', 'cut_red_sandstone'],
+  chiseled_sandstone: ['sandstone_top', 'sandstone_top', 'chiseled_sandstone'], chiseled_red_sandstone: ['red_sandstone_top', 'red_sandstone_top', 'chiseled_red_sandstone'],
+  quartz_block: ['quartz_block_top', 'quartz_block_bottom', 'quartz_block_side'], quartz_pillar: ['quartz_pillar_top', 'quartz_pillar_top', 'quartz_pillar'],
+  chiseled_quartz_block: ['chiseled_quartz_block_top', 'chiseled_quartz_block_top', 'chiseled_quartz_block'],
+  crafting_table: ['crafting_table_top', 'oak_planks', 'crafting_table_side'], bookshelf: ['oak_planks', 'oak_planks', 'bookshelf'],
+  furnace: ['furnace_top', 'furnace_top', 'furnace_side'], blast_furnace: ['blast_furnace_top', 'blast_furnace_top', 'blast_furnace_side'], smoker: ['smoker_top', 'smoker_bottom', 'smoker_side'],
+  tnt: ['tnt_top', 'tnt_bottom', 'tnt_side'], hay_block: ['hay_block_top', 'hay_block_top', 'hay_block_side'], pumpkin: ['pumpkin_top', 'pumpkin_top', 'pumpkin_side'], melon: ['melon_top', 'melon_top', 'melon_side'],
+  barrel: ['barrel_top', 'barrel_bottom', 'barrel_side'], chest: ['oak_planks', 'oak_planks', 'oak_planks'], trapped_chest: ['oak_planks', 'oak_planks', 'oak_planks'],
+  deepslate: ['deepslate_top', 'deepslate_top', 'deepslate'], dirt_path: ['dirt_path_top', 'dirt', 'dirt_path_side'], bone_block: ['bone_block_top', 'bone_block_top', 'bone_block_side'],
+  bamboo_block: ['bamboo_block_top', 'bamboo_block_top', 'bamboo_block'], stripped_bamboo_block: ['stripped_bamboo_block_top', 'stripped_bamboo_block_top', 'stripped_bamboo_block'],
+  basalt: ['basalt_top', 'basalt_top', 'basalt_side'], polished_basalt: ['polished_basalt_top', 'polished_basalt_top', 'polished_basalt_side'], water: ['water_still', 'water_still', 'water_still'], lava: ['lava_still', 'lava_still', 'lava_still']
+};
+const D = (key, c, style, rgb, extra) => Object.assign({ key, c, style, rgb }, extra || {});
+const all = d => ({ top: d, bottom: d, side: d });
+const GRASS_TINT = [145, 189, 89], FOLIAGE_TINT = [119, 171, 47], WATER_TINT = [63, 118, 228];
+function tintFor(c) {
+  if (/^(grass_block_top|short_grass|grass|tall_grass_(top|bottom)|fern|large_fern_(top|bottom)|sugar_cane|grass_block_side_overlay)$/.test(c)) return GRASS_TINT;
+  if (/^(oak|spruce|birch|jungle|acacia|dark_oak|mangrove)_leaves$|^vine$|^lily_pad$/.test(c)) return FOLIAGE_TINT;
+  if (/^water_(still|flow)$/.test(c)) return WATER_TINT;
+  return null;
+}
+const ORE_SPOT = { coal: [30, 30, 30], iron: [216, 175, 147], gold: [252, 238, 75], copper: [224, 139, 100], diamond: [93, 236, 245], emerald: [23, 221, 98], redstone: [255, 40, 20], lapis: [31, 90, 204] };
+function descFor(base) {
+  let x;
+  if ((x = base.match(new RegExp('^(' + WOODS + ')_(door|trapdoor)$')))) return all(D(base, [x[1] + (x[2] === 'door' ? '_door_top' : '_trapdoor')], 'planks', colorOf(x[1] + '_planks')));
+  if (base === 'iron_door' || base === 'iron_trapdoor') return all(D(base, [base === 'iron_door' ? 'iron_door_top' : 'iron_trapdoor'], 'metal', colorOf('iron_block')));
+  if ((x = base.match(new RegExp('^(stripped_)?(' + WOODS + ')_(log|stem)$')))) {
+    const pl = colorOf(x[2] + '_planks');
+    return { top: D(base + '_top', [base + '_top'], 'rings', pl), bottom: D(base + '_top', [base + '_top'], 'rings', pl), side: D(base, [base], 'bark', colorOf(base)) };
+  }
+  if ((x = base.match(new RegExp('^(stripped_)?(' + WOODS + ')_(wood|hyphae)$')))) {
+    const src = base.replace(/_wood$/, '_log').replace(/_hyphae$/, '_stem'); return all(D(src, [src], 'bark', colorOf(src)));
+  }
+  if (/_leaves$/.test(base)) return all(D(base, [base], 'leaves', colorOf(base), { opaque: true }));
+  if ((x = base.match(new RegExp('^(' + COLORS16 + ')_(carpet|bed|banner|wall_banner)$')))) { const w = x[1] + '_wool'; return all(D(w, [w], 'wool', colorOf(w))); }
+  if ((x = base.match(/^(.*glass)_pane$/))) return all(D(x[1], [x[1]], 'glass', colorOf(x[1]), { stained: /stained/.test(x[1]) }));
+  if (/stained_glass$/.test(base)) return all(D(base, [base], 'glass', colorOf(base), { stained: true }));
+  if (/^(soul_|redstone_)?(wall_)?torch$/.test(base)) { const t = base.replace('wall_', ''); return all(D(t, [t], 'torch', colorOf(t))); }
+  if (SPECIAL[base] || SPECIAL[materialOf(base)]) {
+    const key = SPECIAL[base] ? base : materialOf(base), s = SPECIAL[key];
+    if (key === 'grass_block') return { top: D('grass_block_top', ['grass_block_top'], 'gtop', [95, 154, 60]), bottom: D('dirt', ['dirt'], 'dirt', colorOf('dirt')), side: D('grass_block_side', ['grass_block_side'], 'gside', [95, 154, 60], { ov: 'grass_block_side_overlay' }) };
+    const st = styleOf(s[2]);
+    return { top: D(s[0], [s[0]], styleOf(s[0]), colorOf(key)), bottom: D(s[1], [s[1]], styleOf(s[1]), colorOf(key)), side: D(s[2], [s[2]], st, colorOf(key)) };
+  }
+  const m = materialOf(base), st = styleOf(m), extra = {};
+  if (st === 'ore') { extra.deep = /^deepslate_/.test(m); extra.spot = ORE_SPOT[m.replace(/^deepslate_/, '').replace('_ore', '')] || [200, 160, 120]; }
+  if (st === 'plant') extra.flower = /flower|tulip|dandelion|poppy|orchid|allium|bluet|oxeye|cornflower|lily_of/.test(m) ? colorOf(m) : null;
+  return all(D(m, [m, m + '_side', m + '_top', m + '_block', m + '_planks'], st, colorOf(m), extra));
+}
+
+const atlas = { cv: null, ctx: null, tex: null, map: new Map(), next: 1, dirty: false, pack: null, mode: 'classic' };
+const KEEP_STYLE = new Set(['glass', 'water', 'ice', 'plant', 'torch', 'ladder', 'bars', 'gside', 'lava']);
+function atlasReset() {
+  atlas.map.clear(); atlas.next = 1; atlas.ctx.clearRect(0, 0, atlas.cv.width, atlas.cv.height);
+  atlas.ctx.putImageData(genTile('noise', [150, 150, 150], 7), 0, 0); atlas.dirty = true;
+}
+function atlasPut(key, img) {
+  let i = atlas.map.get(key);
+  if (i !== undefined) return i;
+  if (atlas.next >= GRID * GRID) return 0;
+  i = atlas.next++;
+  atlas.ctx.putImageData(img, (i % GRID) * TILE, ((i / GRID) | 0) * TILE);
+  atlas.map.set(key, i); atlas.dirty = true;
+  return i;
+}
+function packTile(d) {
+  const pk = atlas.pack;
+  for (const cand of d.c) {
+    const src = pk.get(cand);
+    if (!src) continue;
+    const out = new ImageData(new Uint8ClampedArray(src.data), 16, 16), o = out.data, tint = tintFor(cand);
+    if (tint) for (let i = 0; i < 1024; i += 4) { o[i] = o[i] * tint[0] / 255; o[i + 1] = o[i + 1] * tint[1] / 255; o[i + 2] = o[i + 2] * tint[2] / 255; }
+    if (d.ov && pk.get(d.ov)) {
+      const ov = pk.get(d.ov).data;
+      for (let i = 0; i < 1024; i += 4) { const a = ov[i + 3] / 255; if (a > 0) for (let k = 0; k < 3; k++) o[i + k] = o[i + k] * (1 - a) + ov[i + k] * GRASS_TINT[k] / 255 * a; }
+    }
+    if (d.opaque) { const bg = tint || [90, 130, 50]; for (let i = 0; i < 1024; i += 4) { const a = o[i + 3] / 255; for (let k = 0; k < 3; k++) o[i + k] = o[i + k] * a + bg[k] * .3 * (1 - a); o[i + 3] = 255; } }
+    return { img: out, cand };
+  }
+  return null;
+}
+function tileOf(d) {
+  if (atlas.mode === 'pack' && atlas.pack) {
+    const k0 = 'p|' + d.key + '|' + d.style;
+    const hit = atlas.map.get(k0); if (hit !== undefined) return hit;
+    const t = packTile(d);
+    if (t) return atlasPut(k0, t.img);
+  }
+  const st = atlas.mode === 'bare' && !KEEP_STYLE.has(d.style) ? 'bare' : d.style;
+  const key = 'g|' + d.key + '|' + st, hit = atlas.map.get(key);
+  if (hit !== undefined) return hit;
+  return atlasPut(key, genTile(st, d.rgb, hashStr(d.key + d.style), d));
+}
+function facesFor(name, props) {
+  const base = name.replace(/^[^:]*:/, ''), sp = descFor(base);
+  const T = tileOf(sp.top), B = sp.bottom === sp.top ? T : tileOf(sp.bottom), Sd = sp.side === sp.top ? T : tileOf(sp.side);
+  const ax = props && props.get('axis') ? props.get('axis').v : 'y';
+  if (ax === 'x') return [T, T, Sd, Sd, Sd, Sd];
+  if (ax === 'z') return [Sd, Sd, Sd, Sd, T, T];
+  return [Sd, Sd, T, B, Sd, Sd];
+}
+
+function makeZipMulti(files) {
+  const parts = [], cds = [], d = new Date();
+  const dosT = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), dosD = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  let off = 0;
+  for (const f of files) {
+    const nb = enc.encode(f.name), crc = crc32(f.data), size = f.data.length;
+    const lh = new Uint8Array(30 + nb.length), lv = new DataView(lh.buffer);
+    lv.setUint32(0, 0x04034b50, true); lv.setUint16(4, 20, true); lv.setUint16(6, 0x0800, true); lv.setUint16(10, dosT, true); lv.setUint16(12, dosD, true);
+    lv.setUint32(14, crc, true); lv.setUint32(18, size, true); lv.setUint32(22, size, true); lv.setUint16(26, nb.length, true); lh.set(nb, 30);
+    const ch = new Uint8Array(46 + nb.length), cv = new DataView(ch.buffer);
+    cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true); cv.setUint16(8, 0x0800, true); cv.setUint16(12, dosT, true); cv.setUint16(14, dosD, true);
+    cv.setUint32(16, crc, true); cv.setUint32(20, size, true); cv.setUint32(24, size, true); cv.setUint16(28, nb.length, true); cv.setUint32(42, off, true); ch.set(nb, 46);
+    parts.push(lh, f.data); cds.push(ch); off += lh.length + size;
+  }
+  const cdSize = cds.reduce((a, c) => a + c.length, 0), end = new Uint8Array(22), ev = new DataView(end.buffer);
+  ev.setUint32(0, 0x06054b50, true); ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true); ev.setUint32(12, cdSize, true); ev.setUint32(16, off, true);
+  const out = new Uint8Array(off + cdSize + 22); let p = 0;
+  for (const a of [...parts, ...cds, end]) { out.set(a, p); p += a.length; }
+  return out;
+}
+
+/* ---- reading a resource pack or the Minecraft jar (both are zip files) ---- */
+async function inflateRaw(u8) {
+  const s = new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+function zipIndex(u8) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  let e = -1;
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65600); i--) if (dv.getUint32(i, true) === 0x06054b50) { e = i; break; }
+  if (e < 0) throw new Error('This does not look like a zip file.');
+  const n = dv.getUint16(e + 10, true), out = new Map();
+  let p = dv.getUint32(e + 16, true);
+  for (let i = 0; i < n; i++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const method = dv.getUint16(p + 10, true), cs = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cm = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+    out.set(dec.decode(u8.subarray(p + 46, p + 46 + nl)), { method, cs, off });
+    p += 46 + nl + xl + cm;
+  }
+  return { dv, out };
+}
+async function zipRead(u8, dv, e) {
+  const nl = dv.getUint16(e.off + 26, true), xl = dv.getUint16(e.off + 28, true), s = e.off + 30 + nl + xl, raw = u8.subarray(s, s + e.cs);
+  return e.method === 0 ? raw : inflateRaw(raw);
+}
+async function readPack(file, progress) {
+  const u8 = new Uint8Array(await file.arrayBuffer()), { dv, out } = zipIndex(u8), names = [];
+  for (const k of out.keys()) { const m = k.match(/(?:^|\/)assets\/minecraft\/textures\/block\/([^\/]+)\.png$/); if (m) names.push([m[1], k]); }
+  if (!names.length) throw new Error('No block textures found in this file.');
+  const pack = new Map(), cv = document.createElement('canvas'); cv.width = cv.height = 16;
+  const cx = cv.getContext('2d', { willReadFrequently: true });
+  for (let i = 0; i < names.length; i += 12) {
+    await Promise.all(names.slice(i, i + 12).map(async ([nm, key]) => {
+      try {
+        const bmp = await createImageBitmap(new Blob([await zipRead(u8, dv, out.get(key))], { type: 'image/png' }));
+        const c = document.createElement('canvas'); c.width = c.height = 16; const g = c.getContext('2d', { willReadFrequently: true });
+        g.imageSmoothingEnabled = bmp.width > 16; g.drawImage(bmp, 0, 0, bmp.width, Math.min(bmp.height, bmp.width), 0, 0, 16, 16);
+        pack.set(nm, g.getImageData(0, 0, 16, 16)); bmp.close();
+      } catch (e) { /* skip unreadable file */ }
+    }));
+    progress(Math.round(100 * Math.min(i + 12, names.length) / names.length));
+  }
+  return pack;
+}
+
+/* ==== UI ==== */
+(() => {
+  const $ = id => document.getElementById(id);
+  const E = {};
+  ['file', 'stage', 'gl', 'tip', 'hint', 'empty', 'card', 'sample', 'err', 'load', 'loadTxt', 'panel', 'fname',
+    'camBox', 'camFly', 'camOrbit', 'spdDown', 'spdUp', 'spdVal', 'joy', 'knob', 'vb', 'vUp', 'vDown',
+    'tabEdit', 'tabView', 'tabSave', 'tpEdit', 'tpView', 'tpSave',
+    'mSel', 'mPaint', 'multi', 'multiRow', 'modeNote', 'selBox', 'selTitle', 'selMeta', 'selSame', 'selClear', 'selPick', 'blk', 'air', 'recent', 'apply',
+    'speed', 'speedLbl', 'vTop', 'vReset', 'layer', 'layerLbl', 'layerDown', 'layerUp', 'layerAll', 'texBuiltin', 'texBare', 'texPack', 'packFile', 'texNote', 'remember', 'packExport', 'packForget', 'lbl3d',
+    'undo', 'redo', 'editSum', 'props', 'dropTE', 'newName', 'saveNote', 'status', 'save', 'saveTxt', 'blocks']
+    .forEach(k => E[k] = $(k));
+  const ID_RE = /^[a-z0-9_.-]+:[a-z0-9_./-]+$/;
+  const framed = !!(window.claude && typeof window.claude.use === 'function');
+  const plural = (n, w) => n.toLocaleString() + ' ' + w + (n === 1 ? '' : 's');
+  const normalize = s => { s = s.trim().toLowerCase(); return s ? (s.includes(':') ? s : 'minecraft:' + s) : ''; };
+  const tick = () => new Promise(r => setTimeout(r, 0));
+
+  let S = null, fileBase = 'schematic', dl = null, dlChecked = !framed, busy = false;
+  let mode = 'select', sel = new Set(), undoS = [], redoS = [], recent = [];
+  let renderer = null, scene = null, cam = null, group = null, chunks = [], ncx = 0, ncy = 0, ncz = 0, queue = [], totalQ = 0;
+  let selMesh = null, hoverBox = null, matO = null, matT = null, matC = null, selDirty = false;
+  let needRender = false, raf = 0, hoverIdx = -1, lastT = 0, packName = '', labelIdx = -1, lblText = '';
+  const orbit = { yaw: .8, pitch: .6, r: 30, tx: 0, ty: 0, tz: 0 };
+  const fly = { x: 0, y: 0, z: 0, yaw: .8, pitch: .5 };
+  const view = { mode: 'fly' };
+  let speedV = 50;
+  const joy = { x: 0, y: 0, id: null }, keys = new Set();
+  let vert = 0;
+  const speed = () => 2 * Math.pow(40, speedV / 100);
+
+  /* ---------- three.js setup ---------- */
+  function initGL() {
+    if (renderer) return true;
+    if (typeof THREE === 'undefined') { showErr('The 3D library did not load. Check your connection and reload.'); return false; }
+    try { renderer = new THREE.WebGLRenderer({ canvas: E.gl, antialias: true, alpha: true, powerPreference: 'high-performance' }); }
+    catch (e) { showErr('This browser cannot start 3D graphics (WebGL).'); return false; }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0x000000, 0);
+    scene = new THREE.Scene();
+    cam = new THREE.PerspectiveCamera(70, 1, .1, 4000);
+    group = new THREE.Group(); scene.add(group);
+    atlas.cv = document.createElement('canvas'); atlas.cv.width = atlas.cv.height = TILE * GRID;
+    atlas.ctx = atlas.cv.getContext('2d');
+    atlas.tex = new THREE.CanvasTexture(atlas.cv);
+    atlas.tex.magFilter = THREE.NearestFilter; atlas.tex.minFilter = THREE.NearestFilter; atlas.tex.generateMipmaps = false;
+    atlasReset();
+    matO = new THREE.MeshBasicMaterial({ vertexColors: true, map: atlas.tex });
+    matT = new THREE.MeshBasicMaterial({ vertexColors: true, map: atlas.tex, transparent: true, depthWrite: false });
+    matC = new THREE.MeshBasicMaterial({ vertexColors: true, map: atlas.tex, alphaTest: .5 });
+    hoverBox = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.02, 1.02, 1.02)), new THREE.LineBasicMaterial({ color: 0x19a7ff }));
+    hoverBox.visible = false; hoverBox.renderOrder = 6; scene.add(hoverBox);
+    RESOLVE = facesFor;
+    new ResizeObserver(resize).observe(E.stage);
+    resize();
+    return true;
+  }
+  function resize() {
+    if (!renderer) return;
+    const w = Math.max(1, E.stage.clientWidth), h = Math.max(1, E.stage.clientHeight);
+    renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); req();
+  }
+  function placeCam() {
+    if (view.mode === 'orbit') {
+      const cp = Math.cos(orbit.pitch);
+      cam.position.set(orbit.tx + orbit.r * cp * Math.sin(orbit.yaw), orbit.ty + orbit.r * Math.sin(orbit.pitch), orbit.tz + orbit.r * cp * Math.cos(orbit.yaw));
+      cam.lookAt(orbit.tx, orbit.ty, orbit.tz);
+    } else {
+      const cp = Math.cos(fly.pitch);
+      cam.position.set(fly.x, fly.y, fly.z);
+      cam.lookAt(fly.x - cp * Math.sin(fly.yaw), fly.y - Math.sin(fly.pitch), fly.z - cp * Math.cos(fly.yaw));
+    }
+    cam.updateMatrixWorld();
+  }
+  function req() { needRender = true; if (!raf) raf = requestAnimationFrame(frame); }
+
+  function stepFly(dt) {
+    let jx = joy.x, jy = joy.y;
+    const mag = Math.hypot(jx, jy);
+    if (mag < .12) jx = jy = 0;
+    let fw = jy + (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
+    let st = jx + (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
+    const vy = vert + (keys.has('Space') || keys.has('KeyE') ? 1 : 0) - (keys.has('KeyC') || keys.has('KeyQ') ? 1 : 0);
+    if (!fw && !st && !vy) return false;
+    const n = Math.hypot(fw, st); if (n > 1) { fw /= n; st /= n; }
+    const k = speed() * (mag > .92 ? 1.8 : 1) * dt, cp = Math.cos(fly.pitch), sy = Math.sin(fly.yaw), cy = Math.cos(fly.yaw);
+    fly.x += (-cp * sy * fw + cy * st) * k;
+    fly.y += (-Math.sin(fly.pitch) * fw + vy) * k;
+    fly.z += (-cp * cy * fw - sy * st) * k;
+    return true;
+  }
+  function frame(now) {
+    raf = 0;
+    if (!renderer) return;
+    const dt = Math.min(.05, Math.max(0, (now - lastT) / 1000)); lastT = now;
+    let more = false;
+    if (view.mode === 'fly' && S && stepFly(dt)) { more = true; needRender = true; }
+    if (queue.length) {
+      const t0 = performance.now();
+      while (queue.length && performance.now() - t0 < 8) buildChunk(queue.pop());
+      if (queue.length) { more = true; E.loadTxt.textContent = 'Building 3D view… ' + Math.round(100 * (1 - queue.length / totalQ)) + '%'; }
+      else E.load.hidden = true;
+      needRender = true;
+    }
+    if (selDirty) { rebuildSel(); selDirty = false; needRender = true; }
+    if (needRender) {
+      if (atlas.dirty) { atlas.tex.needsUpdate = true; atlas.dirty = false; }
+      placeCam(); renderer.render(scene, cam); needRender = false; updateLabel();
+    }
+    if (more) raf = requestAnimationFrame(frame);
+  }
+
+  /* ---------- small name label on the selected block ---------- */
+  let lblVec = null;
+  function updateLabel() {
+    const el = E.lbl3d;
+    if (!S || labelIdx < 0 || !sel.has(labelIdx)) { el.hidden = true; return; }
+    const x = labelIdx % S.sx, t = (labelIdx / S.sx) | 0, z = t % S.sz, y = (t / S.sz) | 0;
+    if (y > S.cut) { el.hidden = true; return; }
+    if (!lblVec) lblVec = new THREE.Vector3();
+    lblVec.set(x + .5, y + 1.05, z + .5).project(cam);
+    const w = E.stage.clientWidth, h = E.stage.clientHeight, px = (lblVec.x * .5 + .5) * w, py = (-lblVec.y * .5 + .5) * h;
+    if (lblVec.z > 1 || lblVec.z < -1 || px < -30 || px > w + 30 || py < -30 || py > h + 30) { el.hidden = true; return; }
+    const txt = S.P.names[S.world[labelIdx]].replace(/^minecraft:/, '') + (sel.size > 1 ? ' · +' + (sel.size - 1) : '');
+    if (txt !== lblText) { el.textContent = txt; lblText = txt; }
+    el.hidden = false;
+    el.style.left = Math.max(40, Math.min(w - 40, px)) + 'px'; el.style.top = Math.max(22, py) + 'px';
+  }
+
+  /* ---------- chunk meshes ---------- */
+  function toGeo(D) {
+    if (!D.n) return null;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(D.p), 3));
+    g.setAttribute('color', new THREE.BufferAttribute(new Uint8Array(D.c), 3, true));
+    g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(D.u), 2));
+    g.setIndex(new THREE.BufferAttribute(new Uint32Array(D.i), 1));
+    g.computeBoundingSphere();
+    return g;
+  }
+  function dropChunk(rec) { if (rec) for (const m of [rec.o, rec.t, rec.c]) if (m) { group.remove(m); m.geometry.dispose(); } }
+  function buildChunk(ci) {
+    const cx = ci % ncx, t = (ci / ncx) | 0, cy = t % ncy, cz = (t / ncy) | 0;
+    const { O, T, C } = meshChunk(S, cx, cy, cz);
+    dropChunk(chunks[ci]);
+    const rec = { o: null, t: null, c: null }, go = toGeo(O), gt = toGeo(T), gc = toGeo(C);
+    if (go) { rec.o = new THREE.Mesh(go, matO); group.add(rec.o); }
+    if (gc) { rec.c = new THREE.Mesh(gc, matC); group.add(rec.c); }
+    if (gt) { rec.t = new THREE.Mesh(gt, matT); rec.t.renderOrder = 2; group.add(rec.t); }
+    chunks[ci] = rec;
+  }
+  function clearScene() {
+    for (const c of chunks) dropChunk(c);
+    chunks = []; queue = [];
+    if (selMesh) { scene.remove(selMesh); selMesh.geometry.dispose(); selMesh = null; }
+  }
+  function rebuildChunks(set) {
+    if (set.size > 150) { for (const ci of set) if (!queue.includes(ci)) queue.push(ci); totalQ = queue.length; E.load.hidden = false; }
+    else for (const ci of set) buildChunk(ci);
+    req();
+  }
+  function rebuildAll() { const s = new Set(); for (let i = 0; i < ncx * ncy * ncz; i++) s.add(i); queue = []; rebuildChunks(s); }
+
+  /* ---------- selection highlight ---------- */
+  function rebuildSel() {
+    if (selMesh) { scene.remove(selMesh); selMesh.geometry.dispose(); selMesh = null; }
+    if (!sel.size) return;
+    const { sx, sy, sz } = S, top = Math.min(sy, S.cut + 1), p = [], ix = [], eps = .004;
+    let n = 0;
+    for (const idx of sel) {
+      const x = idx % sx, tt = (idx / sx) | 0, z = tt % sz, y = (tt / sz) | 0;
+      if (y >= top) continue;
+      for (const F of FACES) {
+        const nx = x + F[0], ny = y + F[1], nz = z + F[2];
+        if (nx >= 0 && nx < sx && ny >= 0 && ny < sy && nz >= 0 && nz < sz && sel.has((ny * sz + nz) * sx + nx)) continue;
+        const c = F[4];
+        for (let k = 0; k < 4; k++) p.push(x + (c[3 * k] ? 1 + eps : -eps), y + (c[3 * k + 1] ? 1 + eps : -eps), z + (c[3 * k + 2] ? 1 + eps : -eps));
+        const o = n * 4; ix.push(o, o + 1, o + 2, o, o + 2, o + 3); n++;
+      }
+    }
+    if (!n) return;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(p), 3));
+    g.setIndex(new THREE.BufferAttribute(new Uint32Array(ix), 1));
+    selMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xffa000, transparent: true, opacity: .55, depthWrite: false }));
+    selMesh.renderOrder = 5; scene.add(selMesh);
+  }
+  const markSel = () => { if (!sel.has(labelIdx)) labelIdx = sel.size ? sel.values().next().value : -1; selDirty = true; updateSelUI(); req(); };
+
+  /* ---------- UI state ---------- */
+  function showErr(m) { E.err.textContent = m || ''; E.err.hidden = !m; if (m) { E.empty.hidden = false; E.load.hidden = true; } }
+  const setStatus = m => { E.status.textContent = m || ''; };
+  const cellXYZ = idx => { const x = idx % S.sx, t = (idx / S.sx) | 0; return [x, (t / S.sz) | 0, t % S.sz]; };
+  const nameAt = idx => S.P.names[S.world[idx]];
+
+  function updateSelUI() {
+    const n = sel.size;
+    E.selBox.classList.toggle('on', n > 0);
+    E.selClear.disabled = E.selSame.disabled = E.selPick.disabled = n === 0;
+    if (!n) { E.selTitle.textContent = 'Nothing selected'; E.selMeta.textContent = mode === 'select' ? 'Tap a block in the 3D view.' : 'Replace mode is on. Tap blocks to replace them.'; }
+    else if (n === 1) {
+      const idx = sel.values().next().value, [x, y, z] = cellXYZ(idx), v = S.world[idx], pr = S.P.props[v];
+      E.selTitle.textContent = S.P.names[v];
+      E.selMeta.textContent = 'x ' + x + ', y ' + y + ', z ' + z + (pr ? ' · ' + [...pr].map(([k, b]) => k + '=' + b.v).join(', ') : '');
+    } else {
+      const c = new Map();
+      for (const idx of sel) { const nm = nameAt(idx); c.set(nm, (c.get(nm) || 0) + 1); }
+      E.selTitle.textContent = plural(n, 'block') + ' selected';
+      E.selMeta.textContent = [...c].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => k.replace(/^minecraft:/, '') + ' ×' + v).join(', ') + (c.size > 4 ? ' …' : '');
+    }
+    E.apply.textContent = n ? 'Replace ' + plural(n, 'selected block') : 'Replace selected';
+    checkField();
+  }
+  function checkField() {
+    const t = normalize(E.blk.value), ok = !t || ID_RE.test(t);
+    E.blk.classList.toggle('bad', !ok);
+    E.apply.disabled = !(sel.size && t && ok);
+  }
+  function updateEditUI() {
+    E.undo.disabled = !undoS.length; E.redo.disabled = !redoS.length;
+    E.editSum.textContent = S.changed ? plural(S.changed, 'block') + ' changed' : 'No edits yet';
+    E.save.disabled = !S.changed || busy; E.saveTxt.disabled = E.save.disabled;
+  }
+  function updateLayerUI() {
+    E.layerLbl.textContent = S.cut >= S.sy - 1 ? 'Layer: showing all ' + S.sy : 'Layer: showing up to ' + (S.cut + 1) + ' of ' + S.sy;
+    E.layer.value = S.cut;
+  }
+  function updateSpeedUI() {
+    const s = speed(), t = (s < 10 ? s.toFixed(1) : Math.round(s)) + ' b/s';
+    E.spdVal.textContent = t; E.speed.value = speedV; E.speedLbl.textContent = 'Fly speed: ' + t;
+  }
+  function setMode(m) {
+    mode = m;
+    E.mSel.setAttribute('aria-pressed', m === 'select'); E.mPaint.setAttribute('aria-pressed', m === 'paint');
+    E.multiRow.hidden = m !== 'select';
+    E.modeNote.textContent = m === 'paint' ? 'Type or pick a block below, then tap blocks in the 3D view to replace each one.' : 'Tap blocks to select them, then press Replace.';
+    updateSelUI();
+  }
+  function showTab(name) {
+    for (const t of ['Edit', 'View', 'Save']) { E['tp' + t].hidden = t !== name; E['tab' + t].setAttribute('aria-selected', t === name); }
+  }
+  function updateHint() {
+    E.hint.textContent = view.mode === 'fly'
+      ? 'Left stick to move · drag to look · tap a block to select it · wheel changes speed'
+      : 'Drag to rotate · scroll or pinch to zoom · right-drag or two fingers to pan · tap a block to select it';
+  }
+  function setCamMode(m) {
+    if (m === view.mode) return;
+    placeCam();
+    const cp = Math.cos(view.mode === 'orbit' ? orbit.pitch : fly.pitch);
+    if (m === 'fly') { fly.x = cam.position.x; fly.y = cam.position.y; fly.z = cam.position.z; fly.yaw = orbit.yaw; fly.pitch = orbit.pitch; }
+    else {
+      orbit.yaw = fly.yaw; orbit.pitch = fly.pitch;
+      orbit.tx = fly.x - cp * Math.sin(fly.yaw) * orbit.r; orbit.ty = fly.y - Math.sin(fly.pitch) * orbit.r; orbit.tz = fly.z - cp * Math.cos(fly.yaw) * orbit.r;
+    }
+    view.mode = m; syncCamUI(); req();
+  }
+  function syncCamUI() {
+    const f = view.mode === 'fly';
+    E.camFly.setAttribute('aria-pressed', f); E.camOrbit.setAttribute('aria-pressed', !f);
+    E.joy.hidden = E.vb.hidden = !f || !S; document.getElementById('spdPill').hidden = !f; updateHint();
+  }
+  function pushRecent(id) { recent = [id, ...recent.filter(r => r !== id)].slice(0, 8); renderRecent(); }
+  function renderRecent() {
+    E.recent.textContent = '';
+    for (const id of recent) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = id.replace(/^minecraft:/, '');
+      b.title = id; b.addEventListener('click', () => { E.blk.value = id; checkField(); }); E.recent.append(b);
+    }
+  }
+  function fillDatalist() {
+    const set = new Set(S.P.names); for (const id of commonIds()) set.add(id);
+    E.blocks.textContent = '';
+    const frag = document.createDocumentFragment();
+    for (const id of set) { const o = document.createElement('option'); o.value = id; frag.append(o); }
+    E.blocks.append(frag);
+  }
+
+  /* ---------- editing actions ---------- */
+  function commit(cells, olds, news) {
+    undoS.push({ cells, olds, news }); if (undoS.length > 100) undoS.shift(); redoS = [];
+    rebuildChunks(setCells(S, cells, news)); selDirty = true; updateSelUI(); updateEditUI(); req();
+  }
+  function replaceCells(list, target) {
+    const memo = new Map(), cells = [], olds = [], news = [], pm = E.props.value;
+    for (const idx of list) {
+      const old = S.world[idx]; let nv = memo.get(old);
+      if (nv === undefined) { nv = resolveBlock(S, old, target, pm); memo.set(old, nv); }
+      if (nv !== old) { cells.push(idx); olds.push(old); news.push(nv); }
+    }
+    if (!cells.length) return 0;
+    commit(Uint32Array.from(cells), Uint16Array.from(olds), Uint16Array.from(news));
+    return cells.length;
+  }
+  function doReplace(list, target) {
+    if (!ID_RE.test(target)) { setStatus('Use an ID such as minecraft:stone'); return; }
+    const n = replaceCells(list, target);
+    pushRecent(target);
+    if (!E.blocks.querySelector('option[value="' + target + '"]')) { const o = document.createElement('option'); o.value = target; E.blocks.append(o); }
+    setStatus(n ? 'Replaced ' + plural(n, 'block') + ' with ' + target.replace(/^minecraft:/, '') : 'Those blocks already match.');
+  }
+  function undo() { const e = undoS.pop(); if (!e) return; redoS.push(e); rebuildChunks(setCells(S, e.cells, e.olds)); selDirty = true; updateSelUI(); updateEditUI(); req(); }
+  function redo() { const e = redoS.pop(); if (!e) return; undoS.push(e); rebuildChunks(setCells(S, e.cells, e.news)); selDirty = true; updateSelUI(); updateEditUI(); req(); }
+
+  function setCut(c) {
+    c = Math.max(0, Math.min(S.sy - 1, c | 0));
+    if (c === S.cut) return;
+    const lo = Math.min(c, S.cut), hi = Math.max(c, S.cut);
+    S.cut = c;
+    const a = Math.max(0, Math.floor((lo - 1) / CS)), b = Math.min(ncy - 1, Math.floor((hi + 1) / CS)), set = new Set();
+    for (let cy = a; cy <= b; cy++) for (let cz = 0; cz < ncz; cz++) for (let cx = 0; cx < ncx; cx++) set.add((cz * ncy + cy) * ncx + cx);
+    rebuildChunks(set); updateLayerUI(); selDirty = true; req();
+  }
+
+  /* ---------- textures ---------- */
+  const idb = () => new Promise((res, rej) => { const q = indexedDB.open('litematic-swapper', 1); q.onupgradeneeded = () => q.result.createObjectStore('kv'); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+  const idbOp = async (mode, fn) => { const db = await idb(); return new Promise((res, rej) => { const tx = db.transaction('kv', mode), rq = fn(tx.objectStore('kv')); tx.oncomplete = () => { db.close(); res(rq && rq.result); }; tx.onerror = () => { db.close(); rej(tx.error); }; }); };
+  const packToRec = (pack, name) => {
+    const names = [...pack.keys()], buf = new Uint8Array(names.length * 1024);
+    names.forEach((n, i) => buf.set(pack.get(n).data, i * 1024));
+    return { names, buf, name, v: 1 };
+  };
+  const recToPack = rec => {
+    const m = new Map();
+    rec.names.forEach((n, i) => m.set(n, new ImageData(new Uint8ClampedArray(rec.buf.slice(i * 1024, (i + 1) * 1024)), 16, 16)));
+    return m;
+  };
+  const noteTex = t => { E.texNote.textContent = t; };
+  function syncPackUI(savedHere) {
+    E.texPack.disabled = !atlas.pack; E.packExport.disabled = !atlas.pack; E.packForget.disabled = !savedHere;
+  }
+  let savedHere = false;
+  async function useTextures(m) {
+    atlas.mode = m; if (atlas.ctx) atlasReset();
+    try { localStorage.setItem('litematic-swapper-tex', m); } catch (e) { /* storage unavailable */ }
+    E.texBuiltin.setAttribute('aria-pressed', m === 'classic'); E.texBare.setAttribute('aria-pressed', m === 'bare'); E.texPack.setAttribute('aria-pressed', m === 'pack');
+    if (S) { for (let i = 1; i < S.P.n; i++) if (!S.P.air[i]) S.P.tiles[i] = facesFor(S.P.names[i], S.P.props[i]); rebuildAll(); }
+    req();
+  }
+  async function loadPack(file) {
+    if (!file) return;
+    if (typeof DecompressionStream === 'undefined') { noteTex('This browser cannot read zip files. Use a recent Chrome, Edge, Firefox or Safari.'); return; }
+    E.load.hidden = false; E.loadTxt.textContent = 'Reading textures… 0%';
+    try {
+      await tick();
+      const pack = await readPack(file, p => { E.loadTxt.textContent = 'Reading textures… ' + p + '%'; });
+      atlas.pack = pack; packName = file.name;
+      let msg = 'Using ' + pack.size + ' block textures from ' + file.name + '. Blocks it does not have use the Classic look.';
+      if (E.remember.checked) {
+        try { await idbOp('readwrite', s => s.put(packToRec(pack, file.name), 'pack')); savedHere = true; msg += ' Saved on this device.'; }
+        catch (e) { msg += ' Could not save it on this device.'; }
+      }
+      syncPackUI(savedHere); noteTex(msg);
+      await useTextures('pack');
+    } catch (e) { noteTex('Could not use that file. ' + (e && e.message ? e.message : '')); }
+    if (!queue.length) E.load.hidden = true;
+  }
+  async function forgetPack() {
+    try { await idbOp('readwrite', s => s.delete('pack')); } catch (e) { /* nothing saved */ }
+    savedHere = false; atlas.pack = null; syncPackUI(false);
+    noteTex('Removed the pack saved on this device.');
+    if (atlas.mode === 'pack') await useTextures('classic');
+  }
+  async function deliver(filename, blob) {
+    if (dl) { await dl.save({ filename, data: blob }); return; }
+    if (framed) { const e = new Error('Saving is not available in this view. Open the page in a normal browser tab.'); e.code = 'host_unavailable'; throw e; }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  }
+  async function exportPack() {
+    if (!atlas.pack) return;
+    setStatus('Building pack.zip…');
+    try {
+      await tick();
+      const cv = document.createElement('canvas'); cv.width = cv.height = 16; const g = cv.getContext('2d'), files = [];
+      for (const [name, img] of atlas.pack) {
+        g.putImageData(img, 0, 0);
+        const png = await new Promise(r => cv.toBlob(r, 'image/png'));
+        files.push({ name: 'assets/minecraft/textures/block/' + name + '.png', data: new Uint8Array(await png.arrayBuffer()) });
+      }
+      const zip = makeZipMulti(files);
+      await deliver('pack.zip', new Blob([zip]));
+      setStatus('Saved pack.zip (' + fmtKB(zip.length) + '). Put it next to this page on GitHub.');
+    } catch (e) { setStatus(failText(e)); }
+  }
+  const fmtKB = n => n < 1048576 ? Math.round(n / 1024) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
+  async function bootTextures() {
+    let pack = null, where = '';
+    try { const rec = await idbOp('readonly', s => s.get('pack')); if (rec && rec.names && rec.names.length) { pack = recToPack(rec); where = 'saved on this device (' + (rec.name || 'pack') + ')'; savedHere = true; } } catch (e) { /* no storage */ }
+    if (!pack) {
+      try {
+        const res = await fetch('pack.zip', { cache: 'no-cache' });
+        if (res.ok) { const p = await readPack(new File([await res.blob()], 'pack.zip'), () => {}); if (p.size) { pack = p; where = 'pack.zip from this site'; } }
+      } catch (e) { /* no pack.zip next to the page */ }
+    }
+    if (pack) { atlas.pack = pack; noteTex('Using ' + pack.size + ' block textures, ' + where + '.'); }
+    let m = '';
+    try { m = localStorage.getItem('litematic-swapper-tex') || ''; } catch (e) { /* storage unavailable */ }
+    if (!['classic', 'bare', 'pack'].includes(m) || (m === 'pack' && !pack)) m = pack ? 'pack' : 'classic';
+    syncPackUI(savedHere);
+    if (m !== atlas.mode) await useTextures(m); else { E.texBuiltin.setAttribute('aria-pressed', m === 'classic'); }
+  }
+
+  /* ---------- loading ---------- */
+  async function openFile(file) {
+    showErr('');
+    if (!file) return;
+    await bootP;
+    if (typeof DecompressionStream === 'undefined') { showErr('This browser cannot unpack schematics. Use a recent Chrome, Edge, Firefox or Safari.'); return; }
+    if (!initGL()) return;
+    E.load.hidden = false; E.loadTxt.textContent = 'Reading file…';
+    try {
+      await tick();
+      const raw = new Uint8Array(await file.arrayBuffer());
+      const data = raw[0] === 0x1f && raw[1] === 0x8b ? await gunzip(raw) : raw;
+      const { rootName, root } = readNbt(data);
+      fileBase = file.name.replace(/\.[^.]*$/, '') || 'schematic';
+      E.loadTxt.textContent = 'Decoding blocks…'; await tick();
+      start(loadWorld(rootName, root));
+    } catch (e) {
+      E.load.hidden = true;
+      showErr('Could not read this file. ' + (e && e.message ? e.message : '') + ' Pick a .litematic file made by Litematica.');
+    }
+  }
+  function start(state) {
+    clearScene();
+    S = state; sel = new Set(); undoS = []; redoS = []; hoverIdx = -1; labelIdx = -1; E.lbl3d.hidden = true;
+    ncx = Math.ceil(S.sx / CS); ncy = Math.ceil(S.sy / CS); ncz = Math.ceil(S.sz / CS);
+    const nonAir = countNonAir(S), meta = S.root.v.get('Metadata'), nm = meta && meta.v.get('Name') ? meta.v.get('Name').v : '';
+    E.fname.textContent = (nm || fileBase) + ' · ' + S.sx + '×' + S.sy + '×' + S.sz + ' · ' + plural(nonAir, 'block');
+    E.newName.value = ''; E.newName.placeholder = nm ? 'Keep "' + nm + '"' : 'Keep the current name';
+    E.layer.max = S.sy - 1; updateLayerUI(); updateSpeedUI();
+    fillDatalist(); renderRecent(); setStatus(''); setMode('select');
+    E.empty.hidden = true; E.panel.hidden = false; E.hint.hidden = false; E.camBox.hidden = false; syncCamUI();
+    for (let ci = 0; ci < ncx * ncy * ncz; ci++) queue.push(ci);
+    totalQ = queue.length; E.load.hidden = false; E.loadTxt.textContent = 'Building 3D view… 0%';
+    resetView(false); updateSelUI(); updateEditUI(); syncSaveUI();
+    requestAnimationFrame(() => { resize(); req(); });
+  }
+  function resetView(top) {
+    const m = Math.max(S.sx, S.sy, S.sz);
+    orbit.tx = S.sx / 2; orbit.ty = S.sy / 2; orbit.tz = S.sz / 2; orbit.r = m * 1.5 + 6;
+    orbit.yaw = top ? 0 : .8; orbit.pitch = top ? 1.45 : .6;
+    const cp = Math.cos(orbit.pitch);
+    fly.x = orbit.tx + orbit.r * cp * Math.sin(orbit.yaw); fly.y = orbit.ty + orbit.r * Math.sin(orbit.pitch); fly.z = orbit.tz + orbit.r * cp * Math.cos(orbit.yaw);
+    fly.yaw = orbit.yaw; fly.pitch = orbit.pitch;
+    speedV = Math.max(20, Math.min(80, Math.round(25 * Math.log2(Math.max(1, m * .5) / 2) + 20))); updateSpeedUI();
+    req();
+  }
+
+  /* ---------- pointer controls on the 3D view ---------- */
+  const ptrs = new Map();
+  let moved = 0, downT = 0, panning = false, pinch = null;
+  function ray(cx, cy) {
+    const r = E.gl.getBoundingClientRect();
+    const v = new THREE.Vector3(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1, .5).unproject(cam).sub(cam.position).normalize();
+    return pickVoxel(S, cam.position.x, cam.position.y, cam.position.z, v.x, v.y, v.z);
+  }
+  function panBy(dx, dy) {
+    const k = 2 * orbit.r * Math.tan(cam.fov * Math.PI / 360) / E.gl.clientHeight;
+    const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), up = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
+    orbit.tx += (-dx * right.x + dy * up.x) * k; orbit.ty += (-dx * right.y + dy * up.y) * k; orbit.tz += (-dx * right.z + dy * up.z) * k;
+  }
+  const maxR = () => Math.max(S.sx, S.sy, S.sz) * 6;
+  E.gl.addEventListener('contextmenu', e => e.preventDefault());
+  E.gl.addEventListener('pointerdown', e => {
+    if (!S) return;
+    E.gl.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size === 1) { moved = 0; downT = performance.now(); panning = e.button === 2 || e.button === 1; }
+    else { moved = 99; const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }; }
+    E.hint.hidden = true;
+  });
+  E.gl.addEventListener('pointermove', e => {
+    if (!S) return;
+    const p = ptrs.get(e.pointerId);
+    if (!p) { if (e.pointerType === 'mouse') hover(e.clientX, e.clientY); return; }
+    const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+    if (ptrs.size === 1) {
+      moved += Math.abs(dx) + Math.abs(dy);
+      if (moved < 6 && performance.now() - downT < 500) return;
+      if (view.mode === 'fly') { fly.yaw -= dx * .005; fly.pitch = Math.max(-1.55, Math.min(1.55, fly.pitch + dy * .005)); }
+      else if (panning) panBy(dx, dy);
+      else { orbit.yaw -= dx * .006; orbit.pitch = Math.max(-1.5, Math.min(1.5, orbit.pitch + dy * .006)); }
+      req();
+    } else if (ptrs.size === 2 && pinch && view.mode === 'orbit') {
+      const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      if (d > 0 && pinch.d > 0) orbit.r = Math.max(2, Math.min(maxR(), orbit.r * pinch.d / d));
+      panBy(mx - pinch.mx, my - pinch.my);
+      pinch = { d, mx, my }; req();
+    }
+  });
+  function endPtr(e) {
+    if (!ptrs.has(e.pointerId)) return;
+    const wasTap = ptrs.size === 1 && moved < 6 && performance.now() - downT < 500 && e.type === 'pointerup' && e.button === 0;
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) pinch = null;
+    if (wasTap) tap(e.clientX, e.clientY, e.shiftKey || e.ctrlKey || e.metaKey);
+  }
+  E.gl.addEventListener('pointerup', endPtr);
+  E.gl.addEventListener('pointercancel', endPtr);
+  E.gl.addEventListener('pointerleave', () => { if (hoverBox) { hoverBox.visible = false; E.tip.hidden = true; hoverIdx = -1; req(); } });
+  E.gl.addEventListener('wheel', e => {
+    if (!S) return; e.preventDefault();
+    if (view.mode === 'fly') { speedV = Math.max(0, Math.min(100, speedV - Math.sign(e.deltaY) * 4)); updateSpeedUI(); }
+    else { orbit.r = Math.max(2, Math.min(maxR(), orbit.r * Math.exp(e.deltaY * .0012))); req(); }
+  }, { passive: false });
+
+  let hoverPending = null, hoverRaf = 0;
+  function hover(cx, cy) {
+    hoverPending = [cx, cy];
+    if (hoverRaf) return;
+    hoverRaf = requestAnimationFrame(() => {
+      hoverRaf = 0;
+      if (!hoverPending || !S || !renderer) return;
+      placeCam();
+      const idx = ray(hoverPending[0], hoverPending[1]);
+      if (idx === hoverIdx) return;
+      hoverIdx = idx;
+      if (idx < 0) { hoverBox.visible = false; E.tip.hidden = true; }
+      else { const [x, y, z] = cellXYZ(idx); hoverBox.position.set(x + .5, y + .5, z + .5); hoverBox.visible = true; E.tip.hidden = false; E.tip.textContent = nameAt(idx) + '  ' + x + ', ' + y + ', ' + z; }
+      req();
+    });
+  }
+  function tap(cx, cy, multiKey) {
+    placeCam();
+    const idx = ray(cx, cy);
+    if (mode === 'paint') {
+      if (idx < 0) return;
+      const t = normalize(E.blk.value);
+      if (!t || !ID_RE.test(t)) { setStatus('Type a replacement block first, for example minecraft:stone'); showTab('Edit'); E.blk.focus(); return; }
+      doReplace([idx], t); return;
+    }
+    const multi = multiKey || E.multi.checked;
+    if (idx < 0) { if (!multi && sel.size) { sel.clear(); markSel(); } return; }
+    if (multi) { if (sel.has(idx)) sel.delete(idx); else sel.add(idx); }
+    else if (sel.size === 1 && sel.has(idx)) sel.clear();
+    else { sel.clear(); sel.add(idx); }
+    labelIdx = sel.has(idx) ? idx : -1;
+    markSel();
+  }
+
+  /* ---------- joystick, rise and sink buttons, keyboard ---------- */
+  function joyMove(e) {
+    const r = E.joy.getBoundingClientRect(), R = r.width / 2;
+    let dx = (e.clientX - (r.left + R)) / R, dy = (e.clientY - (r.top + R)) / R;
+    const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; }
+    joy.x = dx; joy.y = -dy;
+    E.knob.style.setProperty('--kx', dx * R * .62 + 'px'); E.knob.style.setProperty('--ky', dy * R * .62 + 'px');
+    req();
+  }
+  const joyEnd = e => { if (e.pointerId !== joy.id) return; joy.id = null; joy.x = joy.y = 0; E.knob.style.setProperty('--kx', '0px'); E.knob.style.setProperty('--ky', '0px'); };
+  E.joy.addEventListener('pointerdown', e => { e.preventDefault(); E.joy.setPointerCapture(e.pointerId); joy.id = e.pointerId; E.hint.hidden = true; joyMove(e); });
+  E.joy.addEventListener('pointermove', e => { if (e.pointerId === joy.id) joyMove(e); });
+  E.joy.addEventListener('pointerup', joyEnd);
+  E.joy.addEventListener('pointercancel', joyEnd);
+  for (const [btn, dir] of [[E.vUp, 1], [E.vDown, -1]]) {
+    btn.addEventListener('pointerdown', e => { e.preventDefault(); btn.setPointerCapture(e.pointerId); vert = dir; btn.classList.add('on'); E.hint.hidden = true; req(); });
+    const up = () => { if (vert === dir) vert = 0; btn.classList.remove('on'); };
+    btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', up);
+  }
+  const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyE', 'KeyC', 'KeyQ']);
+  document.addEventListener('keydown', e => {
+    if (!S || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+    const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+    if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+    if (mod && k === 'y') { e.preventDefault(); redo(); return; }
+    if (!mod && MOVE_KEYS.has(e.code) && view.mode === 'fly') { e.preventDefault(); keys.add(e.code); req(); return; }
+    if (k === 'escape') { sel.clear(); markSel(); }
+    else if ((k === 'delete' || k === 'backspace') && sel.size) { e.preventDefault(); doReplace([...sel], 'minecraft:air'); }
+  });
+  document.addEventListener('keyup', e => keys.delete(e.code));
+  window.addEventListener('blur', () => { keys.clear(); vert = 0; });
+
+  /* ---------- panel wiring ---------- */
+  E.tabEdit.addEventListener('click', () => showTab('Edit'));
+  E.tabView.addEventListener('click', () => showTab('View'));
+  E.tabSave.addEventListener('click', () => showTab('Save'));
+  E.camFly.addEventListener('click', () => setCamMode('fly'));
+  E.camOrbit.addEventListener('click', () => setCamMode('orbit'));
+  E.spdDown.addEventListener('click', () => { speedV = Math.max(0, speedV - 8); updateSpeedUI(); });
+  E.spdUp.addEventListener('click', () => { speedV = Math.min(100, speedV + 8); updateSpeedUI(); });
+  E.speed.addEventListener('input', () => { speedV = +E.speed.value; updateSpeedUI(); });
+  E.vTop.addEventListener('click', () => resetView(true));
+  E.vReset.addEventListener('click', () => resetView(false));
+  E.mSel.addEventListener('click', () => setMode('select'));
+  E.mPaint.addEventListener('click', () => setMode('paint'));
+  E.blk.addEventListener('input', checkField);
+  E.blk.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); E.blk.blur(); if (!E.apply.disabled) E.apply.click(); } });
+  E.apply.addEventListener('click', () => doReplace([...sel], normalize(E.blk.value)));
+  E.air.addEventListener('click', () => { E.blk.value = 'minecraft:air'; checkField(); if (mode === 'select' && sel.size) doReplace([...sel], 'minecraft:air'); });
+  E.selClear.addEventListener('click', () => { sel.clear(); markSel(); });
+  E.selPick.addEventListener('click', () => { const i = sel.values().next().value; E.blk.value = nameAt(i); checkField(); });
+  E.selSame.addEventListener('click', () => {
+    const name = nameAt(sel.values().next().value), top = Math.min(S.sy, S.cut + 1) * S.sx * S.sz, w = S.world, P = S.P;
+    const ok = new Uint8Array(P.n); P.names.forEach((n, i) => { if (n === name) ok[i] = 1; });
+    const next = new Set(sel);
+    for (let i = 0; i < top && next.size < 300000; i++) if (ok[w[i]]) next.add(i);
+    sel = next; markSel();
+    setStatus(plural(sel.size, 'block') + ' of ' + name.replace(/^minecraft:/, '') + ' selected');
+  });
+  let cutPend;
+  E.layer.addEventListener('input', () => { const had = cutPend !== undefined; cutPend = +E.layer.value; if (!had) requestAnimationFrame(() => { const p = cutPend; cutPend = undefined; setCut(p); }); });
+  E.layerDown.addEventListener('click', () => setCut(S.cut - 1));
+  E.layerUp.addEventListener('click', () => setCut(S.cut + 1));
+  E.layerAll.addEventListener('click', () => setCut(S.sy - 1));
+  E.undo.addEventListener('click', undo);
+  E.redo.addEventListener('click', redo);
+  E.texBuiltin.addEventListener('click', () => useTextures('classic'));
+  E.texBare.addEventListener('click', () => useTextures('bare'));
+  E.packExport.addEventListener('click', exportPack);
+  E.packForget.addEventListener('click', forgetPack);
+  E.texPack.addEventListener('click', () => { if (atlas.pack) useTextures('pack'); });
+  E.packFile.addEventListener('change', () => { const f = E.packFile.files[0]; loadPack(f); E.packFile.value = ''; });
+  E.file.addEventListener('change', () => { const f = E.file.files[0]; openFile(f); E.file.value = ''; });
+  E.sample.addEventListener('click', async () => {
+    showErr(''); await bootP; if (!initGL()) return;
+    const s = makeSample(); fileBase = 'house'; start(loadWorld(s.rootName, s.root));
+  });
+  E.stage.addEventListener('dragover', e => { e.preventDefault(); E.card.classList.add('over'); });
+  E.stage.addEventListener('dragleave', () => E.card.classList.remove('over'));
+  E.stage.addEventListener('drop', e => { e.preventDefault(); E.card.classList.remove('over'); openFile(e.dataTransfer.files[0]); });
+
+  /* ---------- saving ---------- */
+  function syncSaveUI() {
+    E.save.textContent = dl ? 'Save as .zip' : 'Save new file';
+    E.saveTxt.hidden = !dl;
+    E.saveNote.textContent = dl
+      ? 'This view only saves common file types, so the schematic comes inside a .zip. Extract it to get your .litematic. Or use Save as .txt and rename the file to end in .litematic.'
+      : framed && dlChecked ? 'Saving files is not available in this view. Open the page in a normal browser tab to save.' : '';
+  }
+  if (framed) window.claude.use('downloads').then(d => { dl = d || null; dlChecked = true; syncSaveUI(); }).catch(() => { dlChecked = true; syncSaveUI(); });
+  const outBase = () => (fileBase + '-edited').replace(/[\\/:*?"<>|]+/g, '_');
+  const failText = e => {
+    const c = e && e.code;
+    if (c === 'declined') return 'Save cancelled.';
+    if (c === 'host_unavailable') return 'This app cannot save files. Open the page in a browser to save.';
+    if (c === 'rate_limited') return 'Wait a moment and try again.';
+    return 'Could not save the file. ' + ((e && e.message) || '');
+  };
+  async function save(kind) {
+    if (busy || !S || !S.changed) return;
+    busy = true; updateEditUI(); setStatus('Building new file…');
+    try {
+      await tick();
+      const root = saveWorld(S, { dropTE: E.dropTE.checked, name: E.newName.value.trim() });
+      const gz = await gzip(writeNbt(S.rootName, root)), base = outBase();
+      if (dl) {
+        await dl.save(kind === 'txt' ? { filename: base + '.litematic.txt', data: new Blob([gz]) } : { filename: base + '.zip', data: new Blob([makeZip(base + '.litematic', gz)]) });
+        setStatus(kind === 'txt' ? 'Saved. Rename the file to ' + base + '.litematic.' : 'Saved. Extract the .zip to get ' + base + '.litematic.');
+      } else if (framed) setStatus('Saving is not available in this view.');
+      else {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([gz])); a.download = base + '.litematic';
+        document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+        setStatus('Saved ' + base + '.litematic');
+      }
+    } catch (e) { setStatus(failText(e)); }
+    busy = false; updateEditUI();
+  }
+  E.save.addEventListener('click', () => save('zip'));
+  E.saveTxt.addEventListener('click', () => save('txt'));
+  syncSaveUI();
+  const bootP = bootTextures().catch(() => {});
+})();
+</script>
